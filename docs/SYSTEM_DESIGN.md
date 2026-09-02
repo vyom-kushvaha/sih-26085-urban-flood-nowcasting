@@ -12,8 +12,8 @@
 │                                                                         │
 │   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐              │
 │   │   CITIZEN   │    │    ADMIN    │    │  RESEARCHER │              │
-│   │  MOBILE APP │    │  DASHBOARD  │    │    API      │              │
-│   │   (Flutter) │    │  (React.js) │    │   (REST)    │              │
+│   │  WEB PORTAL │    │  DASHBOARD  │    │    API      │              │
+│   │  (React.js) │    │  (React.js) │    │   (REST)    │              │
 │   └──────┬──────┘    └──────┬──────┘    └──────┬──────┘              │
 │          │                  │                  │                        │
 │          └──────────────────┼──────────────────┘                        │
@@ -239,7 +239,7 @@ VPC
 
 | Component | Security |
 |-----------|----------|
-| Citizen App | Anonymous (device ID) or Phone OTP |
+| Citizen Web Portal | Anonymous (session/device ID) or Web OTP |
 | Admin Dashboard | JWT Token |
 | Researcher API | API Key + Rate Limiting |
 | Location Data | 24-hour retention, anonymized |
