@@ -1,321 +1,129 @@
 # Product Requirements Document (PRD)
-# Urban Flood Nowcasting System — SIH26085
+# Urban Flood Nowcasting & Decision-Support System — SIH26085
 
 ---
 
 ## 1. Product Overview
 
 ### 1.1 Product Name
-**FloodGuard AI** — Urban Flood Nowcasting & Early Warning System
+**FloodGuard AI** — Urban Flood Nowcasting & Municipal Decision-Support System
 
 ### 1.2 Product Vision
-> Empower cities with real-time flood prediction and citizen-centric early warnings, saving lives and reducing property damage through AI-powered nowcasting.
+> Bridge the gap between meteorological rainfall warnings and hyperlocal urban flood decision-making by coupling rainfall with terrain elevation, drainage network capacity, and blockage scenarios.
 
 ### 1.3 Target Users
 
-| User Type | Count | Primary Need |
-|-----------|-------|-------------|
-| **Citizens** | Millions | Personal safety, route planning |
-| **Municipal Officials** | 100s | Resource deployment, coordination |
-| **Disaster Response Teams** | 1000s | Rescue planning, shelter management |
-| **Researchers** | 100s | Data analysis, model improvement |
+| User Type | Primary Need |
+|-----------|--------------|
+| **Municipal Officers & Disaster Management** | Ward & road-level risk overview, actionable inspection priorities, drainage stress alerts |
+| **Citizens** | Hyperlocal flood risk awareness, nearby risk zone visualization, safety warnings |
+| **Field Response Teams** | Targeted deployment to overwhelmed drainage segments and flooded roads |
 
 ---
 
-## 2. User Personas
+## 2. Core Differentiator & Design Principles
 
-### 2.1 Citizen — Rajesh (Auto-rickshaw driver, Dharavi)
+### 2.1 Core Innovation
+Rainfall alone does not explain urban flooding. FloodGuard AI couples rainfall-driven surface runoff with terrain slope, low-lying accumulation, estimated drainage capacity, and blockage/obstruction scenarios.
 
-- **Age:** 35
-- **Device:** Android phone (₹8,000 range)
-- **Connectivity:** 4G, sometimes patchy
-- **Needs:**
-  - Simple flood alert (yes/no)
-  - Safe route to home
-  - Works on low data
-  - Voice/SMS backup
-
-### 2.2 Municipal Officer — Mrs. Sharma (BMC, Disaster Cell)
-
-- **Age:** 45
-- **Device:** Laptop + Tablet
-- **Needs:**
-  - City-wide risk overview
-  - Ward-level heatmap
-  - Resource deployment tools
-  - Alert broadcast system
-  - Historical data for planning
-
-### 2.3 Researcher — Dr. Kumar (IIT Bombay)
-
-- **Age:** 38
-- **Needs:**
-  - Raw data access
-  - Model performance metrics
-  - API for custom analysis
-  - Export functionality
+### 2.2 Truth in Data & Explainability
+- **Explainable Risk Outputs**: Every high-risk zone provides contributing factors (Rainfall + Elevation + Drainage Stress + Blockage Scenario).
+- **Explicit Data Quality Labels**:
+  - **Observed**: Directly measured or official feeds.
+  - **Derived**: Computed from static spatial datasets (e.g. slope from DEM).
+  - **Estimated**: Calculated using engineering proxies when data is sparse.
+  - **Simulated**: Artificially configured for scenario testing and prototype demonstration.
 
 ---
 
 ## 3. Functional Requirements
 
-### 3.1 Citizen Mobile App
+### 3.1 Municipal Web Dashboard
 
-#### FR-C1: Location Detection
-- **Priority:** P0 (Must have)
-- **Description:** Auto-detect user location via GPS
-- **Acceptance:** Accuracy within 50 meters, <3 seconds
+#### FR-A1: City & Ward Risk Heatmap
+- **Priority:** P0 (Must Have)
+- **Description:** Interactive map showing flood risk levels across wards, roads, and drainage segments.
+- **Acceptance:** Leaflet map rendering color-coded risk polygons with zoom/pan capabilities.
 
-#### FR-C2: Real-time Rainfall Display
+#### FR-A2: Drainage Capacity & Blockage Scenario Controls
 - **Priority:** P0
-- **Description:** Show current rainfall intensity (mm/hr)
-- **Acceptance:** Update every 15 minutes, data from IMD/OpenWeatherMap
+- **Description:** Allow municipal officers to simulate drain blockage levels (0%, 25%, 50%, 75%, 100%).
+- **Formula:** `Effective Capacity = Base Capacity × (1 - Blockage Fraction)`
+- **Acceptance:** Toggling blockage slider dynamically updates downstream risk score and affected road highlights.
 
-#### FR-C3: Flood Risk Score
+#### FR-A3: Actionable Alert Panel
 - **Priority:** P0
-- **Description:** Display risk level (Low/Moderate/High/Critical)
-- **Acceptance:** Based on rainfall + elevation + drainage + historical data
+- **Description:** Right-side panel presenting high-risk zones, root cause, expected timeline (NOW, +1h, +3h, +6h), and recommended inspection priority.
+- **Acceptance:** Displays top 5 critical drainage segments requiring field inspection.
 
-#### FR-C4: Interactive Risk Map
+#### FR-A4: Data Quality & Provenance Indicator
 - **Priority:** P0
-- **Description:** 4-5 km radius map with color-coded risk zones
-- **Acceptance:** 
-  - Zoom in/out
-  - Pan
-  - User location marker
-  - Risk zone polygons
-  - Rainfall overlay
+- **Description:** Clearly label whether current view relies on Observed, Estimated, or Simulated data.
+- **Acceptance:** Data status badge visible in header/legend.
 
-#### FR-C5: Push Notifications
+### 3.2 Citizen Interface
+
+#### FR-C1: Location-Based Flood Risk Display
 - **Priority:** P0
-- **Description:** Alert when risk level changes
-- **Acceptance:** <5 minute latency, customizable thresholds
+- **Description:** Display current risk score and risk level (Low, Moderate, High, Critical) for user location.
 
-#### FR-C6: Safe Route Suggestion
-- **Priority:** P1 (Should have)
-- **Description:** Suggest safest route to destination
-- **Acceptance:** Avoids high-risk zones, considers real-time data
+#### FR-C2: Interactive Flood Risk Map
+- **Priority:** P0
+- **Description:** 4-5 km radius map with color-coded risk zones and flooded road reports.
 
-#### FR-C7: Nearest Shelter
+#### FR-C3: Crowdsourced Incident Reporting
+- **Priority:** P1 (Should Have)
+- **Description:** Citizens can report local waterlogging with GPS location and photo tag for validation.
+
+### 3.3 Backend System & Risk Engine
+
+#### FR-B1: Rainfall Data Ingestion
+- **Priority:** P0
+- **Description:** Fetch current and forecast rainfall from weather APIs (OpenWeatherMap / IMD feeds).
+
+#### FR-B2: Hydrological & Drainage Risk Engine
+- **Priority:** P0
+- **Description:** Deterministic calculation combining surface runoff volume with effective drainage conveyance capacity.
+- **Acceptance:** FastAPI response time <2 seconds per query.
+
+#### FR-B3: Geospatial DEM & Network Processing
+- **Priority:** P0
+- **Description:** Extract elevation, slope, and flow accumulation from DEM grids and OpenStreetMap networks via PostGIS / GeoPandas.
+
+#### FR-B4: Optional ML Calibration Layer
 - **Priority:** P1
-- **Description:** Show nearest flood shelter with directions
-- **Acceptance:** Distance, capacity, route
-
-#### FR-C8: Crowdsourced Reporting
-- **Priority:** P1
-- **Description:** Citizens can report flooding with photo + location
-- **Acceptance:** Photo upload, GPS tag, verification queue
-
-#### FR-C9: Offline Mode
-- **Priority:** P2 (Nice to have)
-- **Description:** Basic functionality without internet
-- **Acceptance:** Cached risk maps, last known rainfall
-
-#### FR-C10: Multi-language Support
-- **Priority:** P1
-- **Description:** Hindi, Marathi, English
-- **Acceptance:** All critical alerts in local language
-
-### 3.2 Admin Dashboard
-
-#### FR-A1: City-wide Risk Overview
-- **Priority:** P0
-- **Description:** Heatmap of all wards with risk levels
-- **Acceptance:** Real-time update, color-coded, clickable wards
-
-#### FR-A2: Ward-level Detail
-- **Priority:** P0
-- **Description:** Click ward → detailed risk analysis
-- **Acceptance:** Rainfall, elevation, drainage, prediction timeline
-
-#### FR-A3: Prediction Timeline
-- **Priority:** P0
-- **Description:** 1hr / 3hr / 6hr forecast
-- **Acceptance:** Graph + map visualization
-
-#### FR-A4: Resource Deployment Panel
-- **Priority:** P1
-- **Description:** Manage pumps, rescue teams, shelters
-- **Acceptance:** Status, location, dispatch functionality
-
-#### FR-A5: Alert Broadcast
-- **Priority:** P0
-- **Description:** Send alerts to citizens via SMS/App/Email
-- **Acceptance:** Target by area, customizable message
-
-#### FR-A6: Citizen Reports Management
-- **Priority:** P1
-- **Description:** View, verify, act on citizen reports
-- **Acceptance:** Photo view, location map, verification status
-
-#### FR-A7: Historical Analysis
-- **Priority:** P2
-- **Description:** Past flood events, model accuracy
-- **Acceptance:** Date range, compare prediction vs actual
-
-#### FR-A8: API Management
-- **Priority:** P2
-- **Description:** API keys, rate limits, usage analytics
-- **Acceptance:** For third-party integrations
-
-### 3.3 Backend System
-
-#### FR-B1: Data Ingestion Pipeline
-- **Priority:** P0
-- **Description:** Fetch data from multiple sources
-- **Sources:** IMD, OpenWeatherMap, sensors (if available)
-- **Frequency:** Every 15 minutes
-
-#### FR-B2: Flood Risk Calculation Engine
-- **Priority:** P0
-- **Description:** Physics-based + ML model
-- **Acceptance:** <2 second response time per location
-
-#### FR-B3: DEM Processing
-- **Priority:** P0
-- **Description:** Read, process, query elevation data
-- **Acceptance:** SRTM 30m resolution, slope calculation
-
-#### FR-B4: Drainage Network Integration
-- **Priority:** P0
-- **Description:** Model drainage capacity and overflow
-- **Acceptance:** OSM data + municipal data (if available)
-
-#### FR-B5: ML Model Training
-- **Priority:** P1
-- **Description:** Calibrate predictions using historical data
-- **Acceptance:** Weekly retraining, accuracy tracking
-
-#### FR-B6: Alert Engine
-- **Priority:** P0
-- **Description:** Trigger alerts based on risk thresholds
-- **Acceptance:** Configurable thresholds, multi-channel delivery
+- **Description:** Scikit-learn / XGBoost model skeleton to calibrate baseline risk scores when historical flood observations exist.
 
 ---
 
 ## 4. Non-Functional Requirements
 
-### 4.1 Performance
+### 4.1 Performance & Scalability
+- **API Latency:** <2 seconds for risk queries.
+- **Map Load Time:** <3 seconds.
+- **Architecture:** Containerized, city-agnostic backend ready for multi-tenant geospatial setup.
 
-| Metric | Target |
-|--------|--------|
-| API Response Time | <2 seconds |
-| Map Load Time | <3 seconds |
-| App Launch Time | <5 seconds |
-| Alert Latency | <5 minutes |
-| Concurrent Users | 10,000+ |
-
-### 4.2 Reliability
-
-| Metric | Target |
-|--------|--------|
-| System Uptime | 99.5% |
-| Data Accuracy | >80% |
-| False Alarm Rate | <20% |
-| Missed Detection Rate | <10% |
-
-### 4.3 Security
-
-- HTTPS everywhere
-- API key authentication
-- Rate limiting
-- Data encryption at rest
-- GDPR-like privacy for citizen data
-
-### 4.4 Scalability
-
-- Horizontal scaling via containers
-- City-agnostic architecture
-- Multi-tenant support
+### 4.2 Technical Credibility & Defensability
+- **No Manufactured Metrics:** Accuracy claims must only be stated when backed by empirical validation against historical datasets.
+- **Fallback Capability:** Graceful fallback to estimated/simulated drainage properties if municipal GIS vector layers are missing.
 
 ---
 
-## 5. Data Requirements
+## 5. Scope & Phased Roadmap
 
-### 5.1 External Data Sources
+### Phase 1 — SIH Prototype (Current)
+- Web Dashboard + Leaflet Map + FastAPI Backend + PostGIS
+- Rainfall ingestion + DEM elevation lookup + Drainage capacity & blockage scenario engine
+- Actionable alert panel + Explainable risk breakdown
+- Transparent data quality indicators (Observed / Estimated / Simulated)
+- Q&A-ready 40-question defense sheet + 6-Slide Presentation Deck + 15-Page Detailed Report
 
-| Data | Source | Frequency | Cost |
-|------|--------|-----------|------|
-| Rainfall (current) | OpenWeatherMap | 15 min | Free tier |
-| Rainfall (forecast) | IMD | 1 hour | Free |
-| Radar imagery | RainViewer | 15 min | Free |
-| DEM | SRTM / Bhuvan | Static | Free |
-| Drainage | OSM | Static | Free |
-| Flood history | News/Research | Static | Free |
-
-### 5.2 Internal Data
-
-| Data | Storage | Retention |
-|------|---------|-----------|
-| User locations | PostgreSQL | 24 hours |
-| Risk calculations | PostgreSQL | 7 days |
-| Citizen reports | PostgreSQL + S3 | 1 year |
-| Model predictions | PostgreSQL | 90 days |
-| Alert logs | PostgreSQL | 1 year |
+### Phase 2 — Pilot & Field Validation
+- Official municipal drainage data integration
+- High-resolution Cartosat / LiDAR elevation grids
+- Historical flood incident validation & ML model calibration
+- Water-level sensor stream integration
 
 ---
 
-## 6. User Interface Requirements
-
-### 6.1 Mobile App (Citizen)
-
-```
-┌─────────────────┐
-│  🌧️ 45 mm/hr   │  ← Header: Rainfall
-│  🔴 HIGH RISK   │  ← Risk Score
-├─────────────────┤
-│                 │
-│   [MAP VIEW]    │  ← 4-5km radius
-│   🟢 🟡 🔴      │     Color-coded zones
-│      📍         │     User location
-│                 │
-├─────────────────┤
-│  🚨 Alert: Move │  ← Action card
-│     to shelter  │
-├─────────────────┤
-│  [Report] [Route]│  ← Action buttons
-└─────────────────┘
-```
-
-### 6.2 Web Dashboard (Admin)
-
-```
-┌─────────────────────────────────────┐
-│  FloodGuard AI | Mumbai | Admin    │
-├──────────┬──────────────────────────┤
-│          │                          │
-│ WARD LIST│    [CITY HEATMAP]        │
-│ ├─ Ward 1│    🟢🟡🟡🔴🔴           │
-│ ├─ Ward 2│    🟢🟢🟡🟡🔴           │
-│ ├─ Ward 3│    🟢🟢🟢🟡🟡           │
-│ ...      │                          │
-│          │                          │
-├──────────┴──────────────────────────┤
-│  Timeline: [1hr] [3hr] [6hr]      │
-├─────────────────────────────────────┤
-│  Resources: Pumps: 5/8 | Teams: 3/5 │
-└─────────────────────────────────────┘
-```
-
----
-
-## 7. Release Criteria
-
-### MVP (SIH Submission)
-- [ ] Citizen app: Location + Rainfall + Risk + Map
-- [ ] Admin dashboard: City overview + Ward detail
-- [ ] Backend: 5 APIs working
-- [ ] Mumbai data integrated
-- [ ] Demo mode for 2-3 cities
-- [ ] PPT + Demo video ready
-
-### V1 (Post-SIH)
-- [ ] Multi-city deployment
-- [ ] IoT sensor integration
-- [ ] ML model trained on historical data
-- [ ] SMS/IVRS alerts
-- [ ] Municipal corporation partnerships
-
----
-
-*PRD Version 1.0 | SIH 2026*
+*PRD Version 2.0 (Revised) | SIH 2026*
