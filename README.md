@@ -22,18 +22,18 @@ Our system combines:
 - **Diffusive-wave 2D hydraulic model** for surface flow simulation
 - **Drainage network coupling** for overflow prediction
 - **ML calibration layer** for accuracy improvement
-- **Citizen app + Admin dashboard** for alerts and resource management
+- **Citizen Web Portal + Admin Dashboard** for alerts and resource management
 
 ---
 
-## 📱 Features
+## 🌐 Features
 
-### Citizen App
-- Auto GPS location detection
+### Citizen Web Portal
+- Auto GPS location detection & search
 - Real-time rainfall display
 - 4-5 km radius interactive risk map
-- Flood risk score (Low/Moderate/High)
-- Push notifications for alerts
+- Flood risk score (Low/Moderate/High/Critical)
+- Web notifications for alerts
 - Crowdsourced flood reporting
 - Nearest shelter directions
 
@@ -64,10 +64,10 @@ External APIs          Static Data
   └─────────────────────────────┘
               ↓
   ┌─────────────────────────────┐
-  │      FRONTEND               │
-  │  ├─ Flutter Mobile App     │
-  │  ├─ React.js Dashboard     │
-  │  └─ Mapbox/Leaflet Maps    │
+  │   UNIFIED REACT WEB APP     │
+  │  ├─ Citizen Public Portal  │
+  │  ├─ React Admin Dashboard  │
+  │  └─ Leaflet / Mapbox Maps  │
   └─────────────────────────────┘
 ```
 
@@ -77,12 +77,12 @@ External APIs          Static Data
 
 | Layer | Technology |
 |-------|-----------|
-| Mobile App | Flutter |
-| Web Dashboard | React.js + Tailwind CSS |
+| Web Portal & Dashboard | React.js + Tailwind CSS |
+| UI Framework | Vite + Radix/Shadcn |
 | Backend | Python FastAPI |
 | Database | PostgreSQL + PostGIS |
 | ML Model | Python (scikit-learn, XGBoost) |
-| Maps | Mapbox GL JS |
+| Maps | Leaflet / Mapbox GL JS |
 | Cloud | AWS Free Tier |
 
 ---
