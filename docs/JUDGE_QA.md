@@ -1,425 +1,276 @@
-# Judge Q&A Preparation
-# Urban Flood Nowcasting System — SIH26085
+# Judge Q&A Preparation & Master Defense Sheet
+# Urban Flood Nowcasting System — SIH26085 (FloodGuard AI)
 
 ---
 
-## Top 20 Expected Questions & Answers
+## Final Team Rules for Q&A
+
+### Rule 1 — Never invent an accuracy number
+If asked: *"What is your accuracy?"*  
+Say: *"We are validating it against historical observations. We will report measured metrics rather than claim an unsupported accuracy."*
+
+### Rule 2 — Never call simulated data real
+Say: *"This layer is simulated for prototype demonstration."*
+
+### Rule 3 — Never claim to replace IMD/CWC/NDMA
+Say: *"We complement existing information with an urban, local decision-support layer."*
+
+### Rule 4 — Never overclaim AI
+Say: *"The core system uses geospatial and runoff/drainage reasoning; ML is a calibration component where sufficient data exists."*
+
+### Rule 5 — Explain every red zone
+A judge should be able to ask: *"Why is this location red?"*  
+And the team should answer immediately: *"Because the model is combining these specific factors: heavy rainfall + low elevation + drainage capacity limitations + blockage scenario."*
+
+### Rule 6 — Know what is built
+Before the presentation, every feature must be marked:
+- **BUILT**
+- **PARTIALLY BUILT**
+- **SIMULATED**
+- **PROPOSED**
 
 ---
 
-### Q1: "Delhi ka data kahan hai? Tumne sirf Mumbai dikhaya."
+## Core 40 Questions & Technical Answers
 
-**Answer:**
-"Sir, abhi humne Mumbai aur Chennai ke liye full integration kiya hai — real-time rainfall + static elevation/drainage + historical flood zones. **Model city-agnostic hai** — kisi bhi city ke liye bas static data add karna hai, aur real-time rainfall API automatically kaam kar jayega. 2 hafte mein kisi bhi city ke liye deploy ho sakta hai."
-
-**Key Points:**
-- Show demo mode (dropdown se Delhi select karo)
-- Real rainfall dikhayega (API se)
-- Detailed drainage nahi hai toh "limited data" message
+### Q1. What exactly is the problem you are solving?
+**Short answer:** We are addressing the gap between rainfall/flood warnings and hyperlocal urban flood decision-making. Our system combines rainfall with terrain and drainage constraints to estimate which local areas and roads are more likely to experience water accumulation.  
+**Detailed explanation:** A rainfall warning tells us that heavy rain may occur, but a municipality also needs to know where drainage may be overwhelmed and which locations require attention first.
 
 ---
 
-### Q2: "Real sensors nahi hain toh kya fayda?"
-
-**Answer:**
-"Sir, Phase 1 mein hum existing data sources use kar rahe hain:
-- IMD rainfall data (2000+ stations)
-- Satellite/radar imagery
-- Citizen crowdsourced reports
-- Historical flood patterns
-
-**Phase 2 mein** low-cost IoT sensors deploy karenge. Architecture already sensor-ready hai — bas integrate karna hai."
-
-**Key Points:**
-- Show architecture diagram with "Sensor Layer"
-- Mention: "API ready for sensor integration"
+### Q2. What is new in your solution?
+**Answer:** Our focus is not simply AI-based flood prediction. We combine rainfall-driven runoff with local drainage constraints, including estimated drainage capacity and blockage scenarios, and present the result as an actionable municipal dashboard.  
+*(Note: Never call this "first in India".)*
 
 ---
 
-### Q3: "False alarm hua toh log ignore kar denge. Kya karoge?"
-
-**Answer:**
-"Sir, iske liye 3 layers hain:
-1. **Ensemble model** — Physics + ML dono agree tabhi alert
-2. **Confidence score** — Har prediction ke saath confidence (0-1). Alert tabhi jab >0.7
-3. **Threshold tuning** — Historical data se optimize kiya hai
-
-Current false alarm rate: **<20%** aur continuously improve ho raha hai."
-
-**Key Points:**
-- Show confidence score in UI
-- Mention validation metrics
+### Q3. Why do you need drainage information?
+**Answer:** Because the same rainfall can produce different flooding outcomes depending on how quickly water can leave the area. If runoff exceeds effective drainage capacity, accumulation can increase.
 
 ---
 
-### Q4: "Government integration kaise hoga?"
-
-**Answer:**
-"Sir, humne **NIC cloud standards** follow kiye hain:
-- REST APIs with OpenAPI spec
-- PostgreSQL + PostGIS (govt standard)
-- Modular microservices architecture
-- NDMA ke existing systems se integrate ho sakta hai
-
-Deployment: **AWS/GCP pe abhi**, lekin NIC cloud pe easily migrate ho sakta hai."
-
-**Key Points:**
-- Show API documentation
-- Mention: "NIC compliant"
+### Q4. How do you model a blocked drain?
+**Answer:** We represent blockage as a reduction in effective drainage capacity. For the prototype, effective capacity is calculated as `Effective Capacity = Base Capacity × (1 - Blockage Fraction)`. This is a scenario model that would be calibrated against real inspection data in a production deployment.
 
 ---
 
-### Q5: "Accuracy kitni hai? Proof kya hai?"
-
-**Answer:**
-"Sir, **0-3 hour horizon mein 80%+ accuracy** hai. Validation kiya hai Mumbai ke historical events se:
-
-| Date | Actual | Predicted | Error |
-|------|--------|-----------|-------|
-| 26 Jul 2005 | Critical (95) | Critical (92) | 3 |
-| 29 Aug 2017 | High (75) | High (78) | 3 |
-| 1 Jul 2019 | High (70) | Moderate (65) | 5 |
-
-ML calibration se continuously improve ho raha hai."
-
-**Key Points:**
-- Show validation table
-- Mention: "Ground truth from news reports + municipal records"
+### Q5. What if you don't get real drainage data?
+**Answer:** We have a fallback architecture. We can use mapped drainage geometry where available (e.g., OpenStreetMap) and use clearly labelled estimated or simulated capacity values for prototype demonstration. The dashboard will distinguish observed, derived, estimated, and simulated data.
 
 ---
 
-### Q6: "Real-time mein itna complex model kaise chalega?"
-
-**Answer:**
-"Sir, humne **diffusive-wave approximation** use kiya hai — full 2D solver nahi. Iska matlab:
-- **<3 seconds** per location calculation
-- **15-minute** update cycle
-- Standard CPU pe chalta hai — GPU nahi chahiye
-
-Complexity trade-off kiya hai accuracy ke liye — lekin nowcasting (0-6h) ke liye sufficient hai."
-
-**Key Points:**
-- Show performance metrics
-- Mention: "Optimized for real-time"
+### Q6. Isn't that fake data?
+**Answer:** If simulated data is presented as real data, that would be a problem. We do not propose doing that. Simulated values are only for demonstrating the pipeline and scenario analysis. For real deployment, municipal drainage and inspection data would be required.
 
 ---
 
-### Q7: "Drainage data kahan se aaya? Municipal se liya?"
-
-**Answer:**
-"Sir, **3 sources** se combine kiya hai:
-1. **OpenStreetMap** — Rivers, drains, canals (free, global)
-2. **Bhuvan (ISRO)** — Water bodies (free, India)
-3. **Municipal data** — Where available (BMC Mumbai)
-
-Detailed municipal data nahi hai toh **OSM + default capacity estimates** use karte hain. Model ko calibrate kiya hai historical flood events se."
-
-**Key Points:**
-- Show data sources slide
-- Mention: "Crowdsourced validation improves accuracy"
+### Q7. Why not just use Google Flood Hub?
+**Answer:** Google Flood Hub is an important existing flood-forecasting system. Our project is not trying to duplicate it. Our proposed focus is urban municipal decision support, especially the relationship between local rainfall, terrain, drainage constraints, blockage scenarios, and road-level operational decisions.
 
 ---
 
-### Q8: "Koi bhi city ke liye kaise scale hoga?"
-
-**Answer:**
-"Sir, architecture **city-agnostic** hai:
-
-1. **Static data** (DEM, drainage, wards) — City-specific, one-time setup
-2. **Real-time data** (rainfall) — APIs automatically work globally
-3. **Model** — Same code, different input data
-
-**New city add karne ka process:**
-- DEM download (1 day)
-- OSM drainage extract (2 hours)
-- Ward boundaries (1 day)
-- Historical flood data collection (1 week)
-- **Total: 2 weeks mein new city live**
-
-Demo mein koi bhi city select karke dekh sakte hain."
-
-**Key Points:**
-- Show city selector in demo
-- Mention: "Containerized deployment"
+### Q8. Why not just use IMD warnings?
+**Answer:** IMD provides essential meteorological warnings and nowcast products. We use such information as an upstream input rather than trying to replace it. Our proposed layer translates rainfall information into local urban flood-risk reasoning using terrain and drainage information.
 
 ---
 
-### Q9: "Citizens ke phone pe kaise dikhayega? Internet nahi hoga toh?"
-
-**Answer:**
-"Sir, 3 modes hain:
-1. **Smartphone app** — Full features, real-time
-2. **SMS alerts** — For non-smartphone users
-3. **IVRS** — Voice-based alerts for rural areas
-
-**Offline mode** bhi hai — last known risk score cached rehta hai. Low connectivity areas mein bhi basic info available."
-
-**Key Points:**
-- Show inclusive design
-- Mention: "No one left behind"
+### Q9. Why use AI/ML?
+**Answer:** The initial risk engine can work with explainable physical/rule-based logic. ML is proposed as a calibration layer when enough historical labelled data becomes available. We do not want ML to become an unexplained black box.
 
 ---
 
-### Q10: "Competition mein aur kya different hai tumhare product mein?"
-
-**Answer:**
-"Sir, 4 key differentiators hain:
-
-1. **Physics + ML Hybrid** — Sirf ML nahi, physics bhi. More robust, explainable
-2. **Drainage Coupling** — Most systems sirf rainfall dekhte hain. Hum drainage capacity bhi model karte hain
-3. **Crowdsourced Validation** — Citizens report karke model improve hota hai
-4. **City-Agnostic + Inclusive** — Koi bhi city, koi bhi phone
-
-**Result:** More accurate, more actionable, more scalable."
-
-**Key Points:**
-- Show comparison slide
-- Mention: "Patent-pending coupling algorithm"
+### Q10. Why XGBoost?
+**Answer:** XGBoost is a strong tabular-data baseline and can model nonlinear relationships between variables. But we would compare it with simpler baselines (such as Logistic Regression or Random Forest) and select it only if validation shows an improvement.
 
 ---
 
-### Q11: "Business model kya hai? Sustainable kaise hoga?"
-
-**Answer:**
-"Sir, **3 revenue streams** hain:
-
-1. **Government contracts** — Municipal corporations, NDMA, Smart City Mission
-2. **Insurance partnerships** — Flood risk assessment for insurance companies
-3. **Enterprise API** — Logistics, construction companies for route planning
-
-**Cost:** Cloud infrastructure ~₹50K/month for 1 city. Revenue from govt contracts covers this."
-
-**Key Points:**
-- Show business model slide
-- Mention: "Social impact + financial sustainability"
+### Q11. How will you calculate accuracy?
+**Answer:** We need labelled historical observations. Depending on the task, we can use precision, recall, F1-score, false-alarm rate, and spatial overlap. We will not claim an accuracy percentage without an actual test dataset.
 
 ---
 
-### Q12: "Team mein kaun kaun hai? Expertise kya hai?"
-
-**Answer:**
-"Sir, 6-member team hai:
-
-| Member | Role | Expertise |
-|--------|------|-----------|
-| Vyom | Architecture + Engine | System design, hydraulic modeling |
-| D | Backend + Engine | FastAPI, Python, PostgreSQL |
-| P | Frontend | Flutter, React, Mapbox |
-| PR | Presentation | Communication, storytelling |
-| Ri | Research | Data collection, validation |
-| Ni | Frontend Support | QA, UI polish |
-
-Combined: AI/ML, GIS, hydrology, full-stack development."
-
-**Key Points:**
-- Show team slide
-- Mention: "Cross-functional expertise"
+### Q12. What if there is no historical data?
+**Answer:** We can still demonstrate the system using scenario-based testing, but we must clearly distinguish demonstration from validation. Extensive performance claims require historical labelled data.
 
 ---
 
-### Q13: "Data privacy ka kya scene hai? Location track kar rahe ho?"
-
-**Answer:**
-"Sir, **privacy-first design** hai:
-
-1. **Location data** — 24-hour retention, anonymized
-2. **No personal info** — Phone number optional, name optional
-3. **Device ID only** — No tracking across sessions
-4. **GDPR-like compliance** — Data deletion on request
-5. **Open data** — Risk scores public, individual data private
-
-**Citizen reports** mein photo public hota hai (crowdsourcing), lekin user identity hidden."
-
-**Key Points:**
-- Show privacy policy
-- Mention: "Ethical AI principles"
+### Q13. Can your system predict six hours ahead?
+**Answer:** The horizon depends on the availability and quality of rainfall forecasts and the model design. We can demonstrate a multi-hour timeline only for horizons supported by the underlying input data. We should not promise six-hour accuracy independently of forecast quality.
 
 ---
 
-### Q14: "Monsoon ke alawa baaki time kya karega system?"
-
-**Answer:**
-"Sir, **year-round utility** hai:
-
-1. **Pre-monsoon** — Drainage cleaning alerts, preparedness
-2. **Monsoon** — Real-time flood prediction (core feature)
-3. **Post-monsoon** — Damage assessment, report analysis
-4. **Dry season** — Maintenance scheduling, infrastructure planning
-
-**Plus:** Cyclone storm surge prediction, urban heat island (future scope)."
-
-**Key Points:**
-- Show year-round use cases
-- Mention: "Not just monsoon tool"
+### Q14. Why use DEM?
+**Answer:** Elevation and derived slope help identify low-lying areas and potential surface-flow pathways. Terrain is therefore an important factor in estimating where runoff may accumulate.
 
 ---
 
-### Q15: "Agar power cut ho gaya toh?"
-
-**Answer:**
-"Sir, **cloud-based system** hai — power cut se affected nahi hota:
-
-1. **Cloud deployment** — AWS/GCP, 99.9% uptime
-2. **Auto-scaling** — Load ke hisaab se servers badhte/ghatte hain
-3. **Multi-AZ** — Data center failure pe backup
-4. **CDN** — Static content edge servers pe cached
-
-**Citizen app** mein offline mode hai — last known risk cached."
-
-**Key Points:**
-- Show deployment architecture
-- Mention: "Enterprise-grade reliability"
+### Q15. What happens if the DEM is too coarse?
+**Answer:** Local road-level drainage features may not be captured accurately. We therefore treat DEM resolution as a limitation and would use higher-resolution elevation data (e.g., Cartosat/LiDAR) for a production deployment.
 
 ---
 
-### Q16: "Tumhara model existing solutions se better kyun?"
-
-**Answer:**
-"Sir, existing solutions mainly 2 types hain:
-
-| Type | Example | Limitation | Our Advantage |
-|------|---------|------------|---------------|
-| Weather-only | IMD alerts | No drainage coupling | We couple drainage |
-| Research models | IIT papers | Not real-time | Real-time + deployable |
-| International | Google Flood Hub | Not India-optimized | India-specific |
-
-**Hum bridge karte hain:** Research accuracy + Real-time deployment + India-specific."
-
-**Key Points:**
-- Show competitive analysis
-- Mention: "Made for India, by Indians"
+### Q16. How does the dashboard help a municipal officer?
+**Answer:** It prioritizes locations. Instead of only showing rainfall, it can show high-risk zones, drainage stress, blockage scenarios, affected roads, and the factors contributing to the risk.
 
 ---
 
-### Q17: "Citizen reports fake ho sakti hain. Kya karoge?"
-
-**Answer:**
-"Sir, **3-layer verification** hai:
-
-1. **AI Verification** — Photo analysis (water detection, location matching)
-2. **Cross-validation** — Multiple reports same area mein → high confidence
-3. **Admin Review** — Municipal officer verify kare
-
-**Gamification** se genuine reporting encourage karte hain — verified reports pe points. Fake reports pe penalty."
-
-**Key Points:**
-- Show verification flow
-- Mention: "Community-driven accuracy"
+### Q17. What is the most important dashboard feature?
+**Answer:** The risk map alone is not enough. The most important feature is the combination of **location + time + reason + recommended inspection priority**.
 
 ---
 
-### Q18: "Kitne cities mein deploy kar sakte ho? Timeline kya hai?"
-
-**Answer:**
-"Sir, **phased deployment** plan hai:
-
-| Phase | Cities | Timeline | Status |
-|-------|--------|----------|--------|
-| 1 | Mumbai, Chennai | Now | Ready |
-| 2 | Delhi, Pune, Hyderabad | 2 months | Architecture ready |
-| 3 | 10 smart cities | 6 months | Funding dependent |
-| 4 | All 100 smart cities | 1 year | Scale dependent |
-
-**Per city setup time:** 2 weeks (DEM + drainage + calibration)."
-
-**Key Points:**
-- Show roadmap slide
-- Mention: "Scalable architecture"
+### Q18. What if a road is flooded but your system did not predict it?
+**Answer:** That is a false negative and an important validation case. We would record the observation, identify which input or model component failed, and use it for calibration. In production, the system should also complement official warnings and field reports rather than operate as the sole safety authority.
 
 ---
 
-### Q19: "Tumhara system NDMA ke existing system se kaise integrate hoga?"
-
-**Answer:**
-"Sir, **NDMA integration** ke liye:
-
-1. **Common Alerting Protocol (CAP)** — Standard XML format
-2. **API Gateway** — NDMA ke systems se direct API calls
-3. **Shared Database** — PostgreSQL compatible
-4. **GIS Standards** — PostGIS, GeoJSON
-
-**Already compliant with:**
-- NIC cloud standards
-- India Meteorological Department data formats
-- National Disaster Management Authority protocols"
-
-**Key Points:**
-- Show integration architecture
-- Mention: "Government-ready"
+### Q19. What if your system gives too many alerts?
+**Answer:** That can create alert fatigue. We therefore need calibrated thresholds, severity levels, and explanations. The system should prioritize actionable alerts rather than simply maximizing the number of warnings.
 
 ---
 
-### Q20: "Agar tumhe SIH nahi milta toh kya karoge?"
-
-**Answer:**
-"Sir, yeh **mission-driven project** hai — SIH ek platform hai, end goal nahi:
-
-1. **Open source** karenge — Community contribute kare
-2. **NGO partnerships** — Red Cross, SEEDS jaise organizations
-3. **Municipal pilots** — BMC se directly approach
-4. **Research publication** — Academic validation
-
-**Goal:** Urban flood deaths zero karna — chahe SIH mile ya na mile."
-
-**Key Points:**
-- Show commitment
-- Mention: "Social impact over prize"
+### Q20. Can this work in another city?
+**Answer:** The software architecture is transferable, but the model should not be assumed to transfer perfectly. Each city has different terrain, drainage infrastructure, rainfall characteristics, and historical flood patterns, so local calibration and validation are required.
 
 ---
 
-## Bonus: Technical Deep-Dive Questions
-
-### Q21: "DEM resolution 30m hai — street-level flood kaise predict karoge?"
-
-**Answer:**
-"Sir, 30m DEM ke limitations hain — lekin:
-1. **Historical flood zones** — Known hotspots pe higher weight
-2. **Drainage network** — Street-level detail OSM se
-3. **ML calibration** — Historical data se micro-patterns learn karta hai
-4. **Future:** 10m Cartosat-1 DEM (ISRO) upgrade karenge
-
-**Current accuracy:** Ward-level (1-2km) sufficient for early warning."
+### Q21. Why use PostgreSQL + PostGIS?
+**Answer:** Because this system is heavily geospatial. PostGIS allows us to store and query geographic objects such as roads, drainage segments, boundaries, and risk zones efficiently.
 
 ---
 
-### Q22: "Diffusive-wave vs full 2D solver — kyun simplify kiya?"
-
-**Answer:**
-"Sir, trade-off analysis kiya tha:
-
-| Aspect | Full 2D | Diffusive-Wave |
-|--------|---------|---------------|
-| Accuracy | 95% | 80% |
-| Speed | 10 min | <3 sec |
-| Complexity | Very High | Medium |
-| Hardware | GPU required | CPU sufficient |
-
-**Nowcasting (0-6h) ke liye 80% accuracy sufficient hai** — lekin 10x faster. Real-time alerts ke liye speed zyada important hai."
+### Q22. Why FastAPI?
+**Answer:** It provides a lightweight Python backend suitable for exposing data-processing and prediction functionality through APIs, while also fitting naturally with the Python-based geospatial and ML stack.
 
 ---
 
-### Q23: "ML model overfit nahi hoga?"
-
-**Answer:**
-"Sir, **3 safeguards** hain:
-
-1. **Regularization** — XGBoost mein built-in L1/L2 regularization
-2. **Cross-validation** — K-fold (k=5) training
-3. **Physics anchor** — ML sirf 40% weight, physics 60%. Overfit bhi hua toh physics baseline stable rehta hai.
-
-**Plus:** Weekly retraining on new data — model drift handle karta hai."
+### Q23. Why React?
+**Answer:** The municipal dashboard is a map-heavy web interface. React provides component-based UI development and works well with mapping and visualization libraries like Leaflet.
 
 ---
 
-## Presentation Tips
-
-1. **Confidence se bolo** — Eye contact, clear voice
-2. **Demo pe focus karo** — 60% time demo, 40% slides
-3. **Numbers bolo** — "80% accuracy", "<3 seconds", "24 wards"
-4. **Visual dikhawo** — Map pe colors, risk scores
-5. **Questions welcome** — "Sir, excellent question" bolke start karo
-6. **Nahi pata toh** — "Sir, yeh specific point research karna padega" — honest raho
+### Q24. What if real-time data stops?
+**Answer:** The system should show data freshness and quality. It can fall back to the latest valid data or scenario mode, but it must clearly indicate that live data is unavailable rather than silently pretending it is current.
 
 ---
 
-*Judge Q&A Version 1.0 | SIH 2026*
+### Q25. What if the drainage is physically damaged rather than blocked?
+**Answer:** The same framework can represent reduced effective capacity. In a production system, condition information would ideally come from inspection records or physical sensors.
+
+---
+
+### Q26. Can you detect a blocked drain automatically?
+**Answer:** Not reliably from rainfall and DEM alone. Automatic blockage detection would require additional observations such as inspection data, water-level sensors, CCTV/computer vision, or citizen reports. Our prototype represents blockage as an input/scenario rather than falsely claiming automatic detection.
+
+---
+
+### Q27. What is your biggest technical challenge?
+**Answer:** Data quality, especially detailed and current drainage capacity and condition data. The modelling itself is manageable; obtaining reliable local infrastructure data is the harder deployment problem.
+
+---
+
+### Q28. What is your biggest weakness?
+**Answer:** The prototype may initially depend on estimated or simulated drainage information where real municipal data is unavailable. We address this by explicitly labelling the data and designing the system so that real municipal data can replace the assumptions later.
+
+---
+
+### Q29. What part is actually AI?
+**Answer:** The ML component is the optional calibration/prediction layer. The broader system also contains geospatial processing and physics-inspired/rule-based reasoning. We should not label every component as AI.
+
+---
+
+### Q30. What happens if the AI is wrong?
+**Answer:** The system is decision support, not an autonomous emergency authority. Predictions should include data-quality/uncertainty information and be combined with official warnings and human review for operational decisions.
+
+---
+
+### Q31. Why should a municipality trust your system?
+**Answer:** Not because we claim perfect accuracy. Trust should come from transparent inputs, explainable risk factors, measurable validation, data-quality indicators, and an audit trail of why a risk was generated.
+
+---
+
+### Q32. What is your MVP?
+**Answer:** A working web dashboard that takes rainfall and geospatial/drainage inputs, calculates explainable local flood risk, displays the risk on a map, and identifies drainage/road locations requiring attention.
+
+---
+
+### Q33. If you only have four days, what will you actually demonstrate?
+**Answer:** We should demonstrate one complete vertical flow rather than many incomplete modules: `Input → Processing → Risk Calculation → Map → Dashboard → Explanation`. Additional features are presented as future scope.
+
+---
+
+### Q34. Why not build IoT sensors immediately?
+**Answer:** Sensors improve real-world observability, but deploying a reliable sensor network requires hardware, calibration, power, connectivity, and maintenance. For SIH, we can demonstrate the software architecture first and show sensor integration as the next phase.
+
+---
+
+### Q35. How will citizen reports help?
+**Answer:** They can provide local observations that may be useful for validation. However, citizen reports are noisy, so they should be quality-controlled and should not automatically become ground truth.
+
+---
+
+### Q36. How do you prevent fake citizen reports?
+**Answer:** Possible controls include location verification, timestamps, duplicate detection, multiple independent reports, moderation, and confidence scoring. A report should be treated as an observation with uncertainty, not absolute truth.
+
+---
+
+### Q37. What is your fallback if ML doesn't work?
+**Answer:** The core system can operate with the explainable baseline risk engine. ML is a calibration layer, not a single point of failure.
+
+---
+
+### Q38. What makes this production-ready?
+**Answer:** The architecture is designed with production concerns such as data provenance, geospatial storage, API separation, validation, monitoring, and modularity. However, the SIH prototype itself should not be described as production-ready until it has undergone real-world validation and operational testing.
+
+---
+
+### Q39. What would you do with government access?
+**Answer:** We would replace estimated infrastructure information with authoritative municipal data, integrate official weather/flood feeds, validate the model against historical incidents, and conduct a controlled pilot.
+
+---
+
+### Q40. Give your solution in one sentence.
+**Answer:** **FloodGuard AI converts rainfall and urban geospatial/drainage conditions into explainable, location-specific flood-risk information so authorities can identify where flooding may occur, why it may occur, and which locations need attention first.**
+
+---
+
+## Rapid-Fire Q&A (15 Seconds per Answer)
+
+| Question | One-line Answer |
+|---|---|
+| **Problem?** | Hyperlocal urban flood-risk decision support. |
+| **Main input?** | Rainfall + terrain + drainage + exposure. |
+| **Main output?** | Explainable location-level flood risk. |
+| **Why drainage?** | Rainfall impact depends on drainage capacity. |
+| **Blockage?** | Modelled as reduced effective drainage capacity. |
+| **AI?** | Used mainly for calibration when labelled data exists. |
+| **Dashboard?** | Risk map + timeline + causes + priority locations. |
+| **Database?** | PostgreSQL + PostGIS. |
+| **Backend?** | FastAPI. |
+| **Frontend?** | React + TypeScript + Leaflet. |
+| **GIS?** | Leaflet + geospatial Python tools. |
+| **Validation?** | Historical/observed flood locations and scenario testing. |
+| **Biggest challenge?** | Reliable local drainage data. |
+| **Biggest limitation?** | Data quality and validation availability. |
+| **IoT?** | Future/extension phase. |
+| **Production?** | Requires municipal data and real-world validation. |
+| **Existing systems?** | IMD, CWC and other flood-warning platforms exist. |
+| **Difference?** | Local drainage-aware municipal decision support. |
+| **Accuracy?** | Only claim measured metrics from real validation. |
+| **City transfer?** | Architecture transfers; local calibration is required. |
+
+---
+
+## Questions the Team Should Ask the Judges / Mentors
+
+1. What level of spatial resolution would be considered operationally useful for the target municipality?
+2. Which official rainfall data source should be preferred for the final prototype?
+3. Is municipal drainage capacity data available for the selected demonstration city?
+4. What historical flood labels are available for validation?
+5. Should the prototype prioritize ward-level or road-level prediction?
+6. Which authority would be the primary operational user?
+7. What alert lead time is most useful for the target use case?
+8. Which data source can be treated as authoritative for flood observations?
+9. What deployment constraints should be considered for government infrastructure?
+10. Which existing system should the prototype be benchmarked against?

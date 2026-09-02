@@ -92,6 +92,7 @@ External APIs          Static Data
 ```
 sih-26085-urban-flood-nowcasting/
 ├── docs/                      # Comprehensive project documentation
+│   ├── RI_PLAN.md             # Research, PPT & Q&A Master Document
 │   ├── PROBLEM_STATEMENT.md   # SIH26085 problem analysis
 │   ├── PRD.md                 # Product Requirements Document
 │   ├── SYSTEM_DESIGN.md       # Architecture & system design
