@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers (Vyom + D combined)
+# Include Routers (Vyom + Devs combined)
 app.include_router(risk_router)
 app.include_router(weather_router)
 app.include_router(d_weather_router)
