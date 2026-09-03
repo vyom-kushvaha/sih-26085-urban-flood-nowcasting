@@ -77,9 +77,10 @@ def test_invalid_coordinates_fastapi_testclient_422():
 
 def test_valid_http_endpoints_fastapi_testclient():
     """Test valid HTTP requests returning HTTP 200 OK via TestClient."""
-    resp_root = client.get("/")
+    resp_root = client.get("/api/v1/health")
     assert resp_root.status_code == 200
     assert resp_root.json()["status"] == "OPERATIONAL"
+
 
     resp_risk = client.post("/api/v1/risk/current", json={"lat": 19.0760, "lon": 72.8777, "rainfall_mm_hr": 45.0, "blockage_pct": 25.0})
     assert resp_risk.status_code == 200

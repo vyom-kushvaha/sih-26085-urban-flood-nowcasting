@@ -116,3 +116,46 @@ async def get_elevation_and_slope(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Elevation lookup failed: {str(e)}")
+
+
+@router.get("/risk/explain", response_model=Dict[str, Any])
+async def explain_risk_endpoint(
+    lat: float = Query(19.0760, ge=-90.0, le=90.0),
+    lon: float = Query(72.8777, ge=-180.0, le=180.0),
+    rainfall_mm_hr: float = Query(35.0, ge=0.0, le=300.0),
+    blockage_pct: float = Query(0.0, ge=0.0, le=100.0),
+    duration_hours: float = Query(1.0, ge=0.5, le=12.0)
+):
+    """
+    GET endpoint for explainable flood risk metrics (used by Frontend UI fetch calls).
+    """
+    try:
+        engine = get_risk_engine()
+        result = engine.calculate_risk(
+            lat=lat,
+            lon=lon,
+            rainfall_mm_hr=rainfall_mm_hr,
+            blockage_pct=blockage_pct,
+            duration_hours=duration_hours
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk explanation failed: {str(e)}")
+
+
+@router.get("/risk/geojson/drainage")
+async def get_drainage_geojson():
+    """
+    Serve Mumbai Drainage GeoJSON for interactive Leaflet map rendering.
+    """
+    geojson_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "processed", "mumbai_drainage.geojson")
+    if not os.path.exists(geojson_path):
+        raise HTTPException(status_code=404, detail="Drainage GeoJSON not found")
+    try:
+        import json
+        with open(geojson_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read drainage GeoJSON: {str(e)}")
+

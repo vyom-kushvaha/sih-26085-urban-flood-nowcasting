@@ -3,8 +3,11 @@ FastAPI Backend Application Entrypoint
 Urban Flood Nowcasting System (SIH26085)
 """
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from backend.routers.risk import router as risk_router
 from backend.routers.weather import router as weather_router
 
@@ -33,9 +36,19 @@ app.include_router(risk_router)
 app.include_router(weather_router)
 app.include_router(d_weather_router)
 
+# Mount Static Files from frontend
+frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+if os.path.exists(frontend_dir):
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
-@app.get("/")
-async def root():
+data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "processed")
+if os.path.exists(data_dir):
+    app.mount("/data-assets", StaticFiles(directory=data_dir), name="data-assets")
+
+
+@app.get("/api/v1/health")
+@app.get("/health")
+async def health_check():
     return {
         "system": "Urban Flood Nowcasting System",
         "status": "OPERATIONAL",
@@ -44,6 +57,16 @@ async def root():
     }
 
 
+@app.get("/")
+async def root():
+    index_path = os.path.join(frontend_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return await health_check()
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
