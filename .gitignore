@@ -142,7 +142,15 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# Large DEM Rasters & Python Cache
-data/raw/dem/*.tif
+# Python & cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
+
+# Large DEM Rasters
+data/raw/dem/*.tif
+
