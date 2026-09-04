@@ -1,0 +1,32 @@
+{
+  "name": "sih-26085-urban-flood-nowcasting",
+  "version": "1.0.0",
+  "description": "> **Smart India Hackathon 2026** | Software Track | Disaster Management Theme\r > \r > Ministry of Earth Sciences (MoES) | Prize: ₹1,00,000",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vyom-kushvaha/sih-26085-urban-flood-nowcasting.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/vyom-kushvaha/sih-26085-urban-flood-nowcasting/issues"
+  },
+  "homepage": "https://github.com/vyom-kushvaha/sih-26085-urban-flood-nowcasting#readme",
+  "devDependencies": {
+    "agentation": "^3.0.2",
+    "agentation-mcp": "^1.2.0",
+    "esbuild": "^0.28.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}
