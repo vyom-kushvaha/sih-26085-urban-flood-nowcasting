@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/vyom-kushvaha/sih-26085-urban-flood-nowcasting#readme",
   "devDependencies": {
+    "@reticlehq/server": "^2.13.1",
     "agentation": "^3.0.2",
     "agentation-mcp": "^1.2.0",
     "esbuild": "^0.28.2",
