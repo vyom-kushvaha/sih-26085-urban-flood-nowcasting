@@ -5,6 +5,7 @@ Urban Flood Nowcasting System (SIH26085)
 
 import os
 from fastapi import FastAPI
+<<<<<<< HEAD
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -15,6 +16,20 @@ try:
     from backend.routes.weather import router as d_weather_router
 except ImportError:
     from routes.weather import router as d_weather_router
+=======
+from dotenv import load_dotenv
+
+load_dotenv()
+
+try:
+    from backend.routes.weather import router as weather_router
+    from backend.routes.demo import router as demo_router
+    from backend.routes.risk import router as risk_router
+except ImportError:
+    from routes.weather import router as weather_router
+    from routes.demo import router as demo_router
+    from routes.risk import router as risk_router
+>>>>>>> 3525bed (Integrate live weather risk API and demo routes)
 
 app = FastAPI(
     title="Urban Flood Nowcasting System API",
@@ -34,6 +49,7 @@ app.add_middleware(
 # Include Routers (Vyom + Devs combined)
 app.include_router(risk_router)
 app.include_router(weather_router)
+<<<<<<< HEAD
 app.include_router(d_weather_router)
 
 # Mount Static Files from frontend
@@ -55,10 +71,15 @@ async def health_check():
         "version": "1.0.0",
         "docs_url": "/docs"
     }
+=======
+app.include_router(demo_router)
+app.include_router(risk_router)
+>>>>>>> 3525bed (Integrate live weather risk API and demo routes)
 
 
 @app.get("/")
 async def root():
+<<<<<<< HEAD
     index_path = os.path.join(frontend_dir, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
@@ -70,3 +91,6 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
+=======
+    return {"message": "Urban Flood Nowcasting API is running"}
+>>>>>>> 3525bed (Integrate live weather risk API and demo routes)
