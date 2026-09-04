@@ -47,8 +47,6 @@ class DEMTile:
         self.max_lon = self.min_lon + (self.width * self.pixel_scale_x)
         self.min_lat = self.max_lat - (self.height * self.pixel_scale_y)
         
-        # Clamp negative values (water bodies / ocean / nodata voids) to 0.0m (Sea Level)
-        grid[grid < 0.0] = 0.0
         self.elevation_grid = grid
         
         # Compute Slope Grid lazily
@@ -153,8 +151,23 @@ class DEMProcessor:
             }
             
         elevation = tile.get_elevation(lat, lon)
+
+        if elevation < 0.0:
+            print(
+                f"[DEMProcessor] Warning: suspicious elevation "
+                f"{elevation:.2f}m at ({lat}, {lon}). "
+                f"Using safe urban fallback."
+            )
+
+            return {
+                "elevation_m": 15.0,
+                "slope_deg": 1.0,
+                "slope_percent": 1.75,
+                "in_dem_coverage": False
+            }
+
         slope_deg, slope_pct = tile.get_slope(lat, lon)
-        
+
         return {
             "elevation_m": round(elevation, 2),
             "slope_deg": round(slope_deg, 2),
