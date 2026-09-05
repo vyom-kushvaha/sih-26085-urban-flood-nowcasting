@@ -24,13 +24,19 @@ client = TestClient(app)
 def test_dem_processor():
     """Verify DEM elevation and slope calculation."""
     dem = get_dem_processor()
-    res = dem.get_elevation_and_slope(19.0760, 72.8777)
     
-    assert res["in_dem_coverage"] is True
-    assert res["elevation_m"] >= 0.0
-    assert "slope_deg" in res
-    assert "slope_percent" in res
-    print("  [PASS] DEM Processor Test")
+    # 1. Fallback check on suspicious coordinates (Mumbai center raw -63m -> safe urban fallback)
+    res_fallback = dem.get_elevation_and_slope(19.0760, 72.8777)
+    assert res_fallback["in_dem_coverage"] is False
+    assert res_fallback["elevation_m"] == 15.0
+    assert "slope_deg" in res_fallback
+    assert "slope_percent" in res_fallback
+
+    # 2. Observed elevation check on valid positive DEM coverage point
+    res_observed = dem.get_elevation_and_slope(19.2, 72.9)
+    assert res_observed["in_dem_coverage"] is True
+    assert res_observed["elevation_m"] > 0.0
+    print("  [PASS] DEM Processor Test (Safe Fallback + Observed Coverage)")
 
 
 def test_drainage_processor():
