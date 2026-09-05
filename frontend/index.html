@@ -220,9 +220,9 @@
   .map-badges .status-badge{box-shadow:0 1px 3px rgba(0,0,0,0.12);}
 
   .layer-control{
-    position:absolute;top:var(--space-3);left:var(--space-3);z-index:5;
+    position:absolute;top:var(--space-3);left:var(--space-3);z-index:1000;
     background:rgba(255,255,255,0.96);border:1px solid var(--border);border-radius:var(--radius-sm);
-    padding:var(--space-3);font-size:0.8rem;min-width:178px;
+    padding:var(--space-3);font-size:0.8rem;min-width:178px;box-shadow:0 2px 8px rgba(0,0,0,0.12);
   }
   .layer-control h4{font-size:0.72rem;text-transform:none;color:var(--text-muted);font-weight:700;margin-bottom:8px;}
   .layer-row{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;}
@@ -230,13 +230,19 @@
   .layer-row span{color:var(--text);}
 
   .legend-box{
-    position:absolute;bottom:var(--space-3);left:var(--space-3);z-index:5;
+    position:absolute;bottom:var(--space-3);left:var(--space-3);z-index:1000;
     background:rgba(255,255,255,0.96);border:1px solid var(--border);border-radius:var(--radius-sm);
-    padding:10px 12px;font-size:0.75rem;
+    padding:10px 12px;font-size:0.75rem;box-shadow:0 2px 8px rgba(0,0,0,0.12);
   }
   .legend-title{font-weight:700;color:var(--text-muted);margin-bottom:6px;font-size:0.72rem;}
   .legend-row{display:flex;align-items:center;gap:7px;padding:2px 0;}
   .legend-swatch{width:11px;height:11px;border-radius:2px;flex:none;}
+
+  .safe-badge-pill{background:#10B981;color:#FFFFFF;font-weight:700;padding:3px 9px;border-radius:12px;font-size:0.75rem;}
+  .danger-badge-pill{background:#EF4444;color:#FFFFFF;font-weight:700;padding:3px 9px;border-radius:12px;font-size:0.75rem;}
+  .hazard-marker-icon, .route-point-icon{background:transparent;border:none;}
+  .route-card.safe-card{border:2px solid #10B981;background:#F0FDF4;}
+  .route-card.danger-card{border:2px solid #EF4444;background:#FEF2F2;}
 
   .no-data-msg{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:6;
@@ -472,17 +478,213 @@
   .report-row:hover{transform:translateY(-1px);}
   .issue-option:hover, .preset-btn:hover{border-color:var(--primary-blue);}
 
-  .status-badge .dot{transition:background-color .2s ease;}
-  .spinner{animation:spin .8s linear infinite;}
+  /* Live Navigation & User Marker */
+  .user-live-marker-wrap{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    pointer-events:none;
+  }
+  .user-pulse-ring{
+    position:absolute;
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:rgba(37,99,235,0.35);
+    border:2px solid #2563EB;
+    animation:userPulse 1.8s ease-out infinite;
+    top:-5px;
+    left:calc(50% - 19px);
+  }
+  @keyframes userPulse{
+    0%{ transform:scale(0.6); opacity:1; }
+    100%{ transform:scale(2.4); opacity:0; }
+  }
+  .user-live-dot{
+    width:22px;
+    height:22px;
+    background:#2563EB;
+    border:3px solid #FFFFFF;
+    border-radius:50%;
+    box-shadow:0 2px 8px rgba(0,0,0,0.45);
+    position:relative;
+    z-index:2;
+  }
+  .user-live-label{
+    background:#1E3A8A;
+    color:#FFFFFF;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:0.5px;
+    padding:1px 6px;
+    border-radius:8px;
+    border:1px solid #93C5FD;
+    margin-top:3px;
+    white-space:nowrap;
+    box-shadow:0 2px 5px rgba(0,0,0,0.35);
+    position:relative;
+    z-index:2;
+  }
 
-  @media (prefers-reduced-motion: reduce){
-    #app, #app.app-enter, .btn, .btn-primary:hover, .btn-orange:hover,
-    .main-nav a, .issue-option, .preset-btn, .filter-chip, .timeline-step,
-    .report-row, .layer-row, .spinner{
-      transition:none !important;
-      animation:none !important;
+  .live-nav-hud{
+    background:var(--white);
+    border:2px solid #004E72;
+    border-radius:var(--radius-md);
+    padding:14px 18px;
+    margin-top:var(--space-4);
+    margin-bottom:var(--space-4);
+    box-shadow:0 4px 14px rgba(0,78,114,0.12);
+  }
+  .live-nav-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:12px;
+    padding-bottom:10px;
+    border-bottom:1px solid #E2E8F0;
+  }
+  .nav-active-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:#ECFDF5;
+    border:1.5px solid #10B981;
+    color:#065F46;
+    font-size:0.76rem;
+    font-weight:800;
+    padding:4px 10px;
+    border-radius:14px;
+    letter-spacing:0.3px;
+  }
+  .nav-pulse-dot{
+    width:8px;
+    height:8px;
+    background:#10B981;
+    border-radius:50%;
+    animation:blinkDot 1.2s infinite ease-in-out;
+  }
+  @keyframes blinkDot{
+    0%, 100%{ opacity:1; transform:scale(1); }
+    50%{ opacity:0.3; transform:scale(0.8); }
+  }
+  .live-nav-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+    gap:10px;
+  }
+  .nav-stat-card{
+    background:#F8FAFC;
+    border:1px solid #E2E8F0;
+    border-radius:var(--radius-sm);
+    padding:8px 10px;
+  }
+  .nav-stat-label{
+    font-size:0.70rem;
+    color:#64748B;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+  }
+  .nav-stat-val{
+    font-size:1.05rem;
+    font-weight:800;
+    color:#0F172A;
+    margin-top:2px;
+  }
+
+  /* Leaflet Current Route Recenter Control & Toast Notification */
+  .leaflet-control-current-route-wrap {
+    margin-bottom: 16px !important;
+    margin-right: 14px !important;
+    z-index: 1000;
+  }
+  .map-current-route-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: #FFFFFF;
+    color: #0F172A;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: var(--font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+    transition: all 0.2s ease;
+    user-select: none;
+    outline: none;
+  }
+  .map-current-route-btn:hover {
+    background: #F8FAFC;
+    border-color: #004E72;
+    color: #004E72;
+    box-shadow: 0 4px 14px rgba(0, 78, 114, 0.25);
+    transform: translateY(-1px);
+  }
+  .map-current-route-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+  .map-current-route-btn.has-active-route {
+    border-color: #10B981;
+    color: #065F46;
+    background: #F0FDF4;
+  }
+  .map-current-route-btn.has-active-route:hover {
+    background: #DCFCE7;
+    border-color: #059669;
+    color: #047857;
+  }
+  .map-current-route-btn .btn-icon {
+    font-size: 1rem;
+    line-height: 1;
+    display: inline-block;
+  }
+  .map-current-route-btn.has-active-route .btn-icon {
+    animation: iconPulse 2s infinite ease-in-out;
+  }
+  @keyframes iconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.18); }
+  }
+  @media (max-width: 600px) {
+    .map-current-route-btn {
+      padding: 6px 10px;
+      font-size: 0.76rem;
     }
-    #app.app-enter{opacity:1;transform:none;}
+  }
+
+  /* Non-intrusive Map Toast */
+  .map-toast-msg {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15, 23, 42, 0.92);
+    color: #F8FAFC;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .map-toast-msg.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 </style>
 
@@ -554,32 +756,32 @@ const CITY_DATA = {
   "Mumbai": {
     center:"19.0760,72.8777",
     areas:{
-      "Hindmata": {status:"LIVE DATA", severity:"HIGH", depth:"18 cm", rainfall:"62 mm (last 3h)", horizon:"Next 2 hours", drainage:"Under stress — 2 nodes surcharging"},
-      "Sion": {status:"MODEL DATA", severity:"MODERATE", depth:"9 cm", rainfall:"41 mm (last 3h)", horizon:"Next 3 hours", drainage:"Operating near capacity"},
-      "Andheri Subway": {status:"LIVE DATA", severity:"CRITICAL", depth:"34 cm", rainfall:"78 mm (last 3h)", horizon:"Next 1 hour", drainage:"Surcharging — 4 nodes"},
-      "Kurla": {status:"MODEL DATA", severity:"LOW", depth:"3 cm", rainfall:"22 mm (last 3h)", horizon:"Next 4 hours", drainage:"Normal"}
+      "Hindmata": {lat: 19.0182, lon: 72.8455, status:"LIVE DATA", severity:"HIGH", depth:"18 cm", rainfall:"62 mm (last 3h)", horizon:"Next 2 hours", drainage:"Under stress — 2 nodes surcharging"},
+      "Sion": {lat: 19.0405, lon: 72.8625, status:"MODEL DATA", severity:"MODERATE", depth:"9 cm", rainfall:"41 mm (last 3h)", horizon:"Next 3 hours", drainage:"Operating near capacity"},
+      "Andheri Subway": {lat: 19.1197, lon: 72.8464, status:"LIVE DATA", severity:"CRITICAL", depth:"34 cm", rainfall:"78 mm (last 3h)", horizon:"Next 1 hour", drainage:"Surcharging — 4 nodes"},
+      "Kurla": {lat: 19.0662, lon: 72.8780, status:"MODEL DATA", severity:"LOW", depth:"3 cm", rainfall:"22 mm (last 3h)", horizon:"Next 4 hours", drainage:"Normal"}
     }
   },
   "Chennai": {
     center:"13.0827,80.2707",
     areas:{
-      "Velachery": {status:"LIVE DATA", severity:"HIGH", depth:"21 cm", rainfall:"58 mm (last 3h)", horizon:"Next 2 hours", drainage:"Under stress — 1 node surcharging"},
-      "Saidapet": {status:"MODEL DATA", severity:"MODERATE", depth:"11 cm", rainfall:"36 mm (last 3h)", horizon:"Next 3 hours", drainage:"Operating near capacity"},
-      "T. Nagar": {status:"MODEL DATA", severity:"LOW", depth:"4 cm", rainfall:"19 mm (last 3h)", horizon:"Next 4 hours", drainage:"Normal"}
+      "Velachery": {lat: 12.9790, lon: 80.2185, status:"LIVE DATA", severity:"HIGH", depth:"21 cm", rainfall:"58 mm (last 3h)", horizon:"Next 2 hours", drainage:"Under stress — 1 node surcharging"},
+      "Saidapet": {lat: 13.0213, lon: 80.2231, status:"MODEL DATA", severity:"MODERATE", depth:"11 cm", rainfall:"36 mm (last 3h)", horizon:"Next 3 hours", drainage:"Operating near capacity"},
+      "T. Nagar": {lat: 13.0418, lon: 80.2341, status:"MODEL DATA", severity:"LOW", depth:"4 cm", rainfall:"19 mm (last 3h)", horizon:"Next 4 hours", drainage:"Normal"}
     }
   },
   "Patna": {
     center:"25.5941,85.1376",
     areas:{
-      "Rajendra Nagar": {status:"NO DATA"},
-      "Kankarbagh": {status:"NO DATA"}
+      "Rajendra Nagar": {lat: 25.6010, lon: 85.1630, status:"NO DATA"},
+      "Kankarbagh": {lat: 25.5890, lon: 85.1480, status:"NO DATA"}
     }
   },
   "Bengaluru": {
     center:"12.9716,77.5946",
     areas:{
-      "Silk Board": {status:"LIVE DATA", severity:"MODERATE", depth:"8 cm", rainfall:"29 mm (last 3h)", horizon:"Next 3 hours", drainage:"Operating near capacity"},
-      "Koramangala": {status:"MODEL DATA", severity:"LOW", depth:"2 cm", rainfall:"14 mm (last 3h)", horizon:"Next 5 hours", drainage:"Normal"}
+      "Silk Board": {lat: 12.9172, lon: 76.6228, status:"LIVE DATA", severity:"MODERATE", depth:"8 cm", rainfall:"29 mm (last 3h)", horizon:"Next 3 hours", drainage:"Operating near capacity"},
+      "Koramangala": {lat: 12.9352, lon: 77.6245, status:"MODEL DATA", severity:"LOW", depth:"2 cm", rainfall:"14 mm (last 3h)", horizon:"Next 5 hours", drainage:"Normal"}
     }
   }
 };
@@ -816,18 +1018,1371 @@ function mockMapSVG(opts){
 /* =====================================================================
    HOME / MAP PAGE
 ===================================================================== */
+/* =====================================================================
+   HOME / MAP PAGE & ROUTING ENGINE
+===================================================================== */
 let homeState = {
   city: "Mumbai",
   area: "Hindmata",
   geoDenied: false,
-  layers: {depth:true, roadRisk:false, rain:false, drain:false, surcharge:false},
-  routeResult: null
+  layers: {depth:true, roadRisk:true, rain:false, drain:true, surcharge:false},
+  routeOrigin: "Hindmata / Dadar, Mumbai",
+  routeDest: "Kurla West, Mumbai",
+  routeOriginLat: null,
+  routeOriginLon: null,
+  routeResult: null,
+  routeError: null,
+  selectedRouteId: null
 };
+
+let navState = {
+  active: false,
+  watchId: null,
+  simTimer: null,
+  userMarker: null,
+  accuracyCircle: null,
+  currentLat: null,
+  currentLon: null,
+  accuracy: null,
+  followMe: true,
+  lastRoutingLat: null,
+  lastRoutingLon: null,
+  lastRerouteTime: 0,
+  offRoute: false,
+  offRouteDistanceM: 0,
+  arrived: false,
+  remainingDistanceKm: null,
+  remainingDurationMin: null,
+  simStepIndex: 0,
+  simCoords: [],
+  isSimulating: false
+};
+
+let leafletMap = null;
+let leafletRouteLayers = [];
+let leafletHotspotLayers = [];
+let leafletDrainageLayer = null;
+
+function haversineMeters(lat1, lon1, lat2, lon2){
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function distToSegmentMeters(pLat, pLon, aLat, aLon, bLat, bLon){
+  const mPerDegLat = 111132.95;
+  const mPerDegLon = 111132.95 * Math.cos(aLat * Math.PI / 180);
+
+  const px = (pLon - aLon) * mPerDegLon;
+  const py = (pLat - aLat) * mPerDegLat;
+  const bx = (bLon - aLon) * mPerDegLon;
+  const by = (bLat - aLat) * mPerDegLat;
+
+  const lenSq = bx * bx + by * by;
+  if(lenSq === 0) return Math.sqrt(px * px + py * py);
+
+  let t = (px * bx + py * by) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+
+  const projX = t * bx;
+  const projY = t * by;
+  const dx = px - projX;
+  const dy = py - projY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function minDistToPolylineMeters(lat, lon, coords){
+  if(!coords || coords.length < 2) return 0;
+  let minDist = Infinity;
+  for(let i = 0; i < coords.length - 1; i++){
+    const d = distToSegmentMeters(lat, lon, coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
+    if(d < minDist) minDist = d;
+  }
+  return minDist;
+}
+
+function getDestinationCoords(){
+  if(homeState.routeResult && homeState.routeResult.query && homeState.routeResult.query.dest_coords){
+    return homeState.routeResult.query.dest_coords;
+  }
+  return { lat: 19.0272, lon: 72.8374 };
+}
+
+function getActiveRouteCoords(){
+  if(!homeState.routeResult) return null;
+  const routes = homeState.routeResult.routes || [];
+  const selected = routes.find(r => r.id === homeState.selectedRouteId) || routes[0] || homeState.routeResult.safe_route;
+  return selected ? selected.coordinates : null;
+}
+
+function handleLocationUpdate(lat, lon, accuracy = 8, isFromSimulation = false){
+  if(!navState.active) return;
+
+  navState.currentLat = lat;
+  navState.currentLon = lon;
+  navState.accuracy = accuracy;
+
+  // 1. Update or create user marker & accuracy circle without reloading page or recreating map
+  if(leafletMap){
+    if(!navState.userMarker){
+      navState.userMarker = L.marker([lat, lon], {
+        icon: L.divIcon({
+          className: 'user-live-marker-icon',
+          html: `
+            <div class="user-live-marker-wrap">
+              <div class="user-pulse-ring"></div>
+              <div class="user-live-dot"></div>
+              <div class="user-live-label">🔵 YOU</div>
+            </div>
+          `,
+          iconSize: [60, 60],
+          iconAnchor: [30, 30]
+        }),
+        zIndexOffset: 1000
+      }).addTo(leafletMap);
+      navState.userMarker.bindPopup("<b>📍 Live Moving Position (YOU)</b><br>Active GPS navigation tracking.");
+    } else {
+      navState.userMarker.setLatLng([lat, lon]);
+    }
+
+    if(!navState.accuracyCircle){
+      navState.accuracyCircle = L.circle([lat, lon], {
+        radius: Math.max(12, Math.min(accuracy, 100)),
+        color: '#2563EB',
+        fillColor: '#3B82F6',
+        fillOpacity: 0.15,
+        weight: 1.5,
+        dashArray: '4, 4'
+      }).addTo(leafletMap);
+    } else {
+      navState.accuracyCircle.setLatLng([lat, lon]);
+      navState.accuracyCircle.setRadius(Math.max(12, Math.min(accuracy, 100)));
+    }
+
+    if(navState.followMe){
+      leafletMap.panTo([lat, lon], { animate: true, duration: 0.8 });
+    }
+  }
+
+  // 2. Check destination arrival proximity (<= 35 meters)
+  const destCoords = getDestinationCoords();
+  if(destCoords){
+    const distToDest = haversineMeters(lat, lon, destCoords.lat, destCoords.lon);
+    navState.remainingDistanceKm = (distToDest / 1000).toFixed(2);
+    navState.remainingDurationMin = Math.max(1, Math.round((distToDest / 1000) * 12));
+
+    if(distToDest <= 35.0){
+      navState.arrived = true;
+      if(navState.simTimer){
+        clearInterval(navState.simTimer);
+        navState.simTimer = null;
+        navState.isSimulating = false;
+      }
+      renderLiveNavHUD();
+      return;
+    }
+  }
+
+  // 3. Check Off-Route Deviation (>= 35 meters from active route)
+  const activeCoords = getActiveRouteCoords();
+  if(activeCoords && activeCoords.length >= 2){
+    const offDist = minDistToPolylineMeters(lat, lon, activeCoords);
+    navState.offRouteDistanceM = Math.round(offDist);
+
+    const now = Date.now();
+    const cooldownElapsed = (now - navState.lastRerouteTime) >= 8000;
+
+    if(offDist >= 35.0){
+      navState.offRoute = true;
+      if(cooldownElapsed){
+        triggerDynamicReroute(lat, lon, "Off recommended route by " + Math.round(offDist) + "m");
+      }
+    } else {
+      navState.offRoute = false;
+      // Check significant movement along corridor (>= 45 meters from last routing point)
+      if(navState.lastRoutingLat && navState.lastRoutingLon){
+        const movedDist = haversineMeters(lat, lon, navState.lastRoutingLat, navState.lastRoutingLon);
+        if(movedDist >= 45.0 && cooldownElapsed){
+          triggerDynamicReroute(lat, lon, "Forward movement along route (" + Math.round(movedDist) + "m)");
+        }
+      } else if(cooldownElapsed && !homeState.routeResult){
+        triggerDynamicReroute(lat, lon, "Initial live navigation fix");
+      }
+    }
+  }
+
+  renderLiveNavHUD();
+}
+
+async function triggerDynamicReroute(lat, lon, reason = ""){
+  const destEl = document.getElementById('destInput');
+  const dest = (destEl ? destEl.value.trim() : '') || homeState.routeDest || 'Chhatrapati Shivaji Maharaj Park';
+  const weatherModeEl = document.getElementById('routeWeatherModeSelect');
+  const mode = weatherModeEl ? weatherModeEl.value : 'live';
+
+  navState.lastRerouteTime = Date.now();
+  navState.lastRoutingLat = lat;
+  navState.lastRoutingLon = lon;
+
+  const originEl = document.getElementById('originInput');
+  if(originEl){
+    originEl.value = `Live GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+  }
+  homeState.routeOrigin = `Live GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+  homeState.routeOriginLat = lat;
+  homeState.routeOriginLon = lon;
+
+  let rainQuery = '';
+  if(mode === 'monsoon_80') rainQuery = '&rainfall_mm_hr=80.0';
+  else if(mode === 'moderate_35') rainQuery = '&rainfall_mm_hr=35.0';
+  else if(mode === 'dry_0') rainQuery = '&rainfall_mm_hr=0.0';
+  else rainQuery = '&force_refresh=true';
+
+  try {
+    const url = `/api/v1/routing/safe-route?origin=Live+GPS&origin_lat=${lat}&origin_lon=${lon}&destination=${encodeURIComponent(dest)}${rainQuery}`;
+    const res = await fetch(url);
+    if(res.ok){
+      const data = await res.json();
+      homeState.routeResult = data;
+      homeState.routeError = null;
+      if(data.is_arrived){
+        navState.arrived = true;
+      }
+      if(leafletMap){
+        drawRoutesOnMap(data);
+      }
+      renderRouteResult();
+      renderLiveNavHUD();
+    }
+  } catch(e){
+    console.warn("Dynamic reroute fetch failed:", e);
+  }
+}
+
+function startLiveNavigation(){
+  navState.active = true;
+  navState.arrived = false;
+  navState.offRoute = false;
+
+  const btn = document.getElementById('toggleLiveNavBtn');
+  if(btn){
+    btn.innerHTML = "⏹ Stop Navigation";
+    btn.classList.remove('btn-outline');
+    btn.classList.add('btn-primary');
+    btn.style.background = "#DC2626";
+    btn.style.borderColor = "#DC2626";
+  }
+
+  if(navigator.geolocation){
+    try {
+      navState.watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const acc = pos.coords.accuracy || 10;
+          if(lat >= 18.88 && lat <= 19.32 && lon >= 72.75 && lon <= 73.02){
+            handleLocationUpdate(lat, lon, acc, false);
+          } else {
+            console.log("[Live GPS] Detected outside Mumbai, utilizing demo live origin at Hindmata.");
+            handleLocationUpdate(19.0182, 72.8455, 12, false);
+          }
+        },
+        (err) => {
+          console.warn("[Live GPS] watchPosition unavailable, using demo location:", err.message);
+          handleLocationUpdate(19.0182, 72.8455, 15, false);
+        },
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      );
+    } catch(e){
+      handleLocationUpdate(19.0182, 72.8455, 15, false);
+    }
+  } else {
+    handleLocationUpdate(19.0182, 72.8455, 15, false);
+  }
+
+  computeRoute();
+  renderLiveNavHUD();
+}
+
+function stopLiveNavigation(){
+  navState.active = false;
+  if(navState.watchId !== null && navigator.geolocation){
+    navigator.geolocation.clearWatch(navState.watchId);
+    navState.watchId = null;
+  }
+  if(navState.simTimer){
+    clearInterval(navState.simTimer);
+    navState.simTimer = null;
+  }
+  navState.isSimulating = false;
+  navState.arrived = false;
+  navState.offRoute = false;
+
+  const btn = document.getElementById('toggleLiveNavBtn');
+  if(btn){
+    btn.innerHTML = "▶ Start Live Navigation";
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-outline');
+    btn.style.background = "";
+    btn.style.borderColor = "";
+  }
+
+  if(leafletMap){
+    if(navState.userMarker){
+      leafletMap.removeLayer(navState.userMarker);
+      navState.userMarker = null;
+    }
+    if(navState.accuracyCircle){
+      leafletMap.removeLayer(navState.accuracyCircle);
+      navState.accuracyCircle = null;
+    }
+  }
+
+  renderLiveNavHUD();
+  updateCurrentRouteButtonState();
+}
+
+function toggleLiveNavigation(){
+  if(navState.active){
+    stopLiveNavigation();
+  } else {
+    startLiveNavigation();
+  }
+}
+
+function toggleWalkSimulation(){
+  if(navState.isSimulating){
+    stopWalkSimulation();
+  } else {
+    startWalkSimulation();
+  }
+}
+
+function startWalkSimulation(){
+  if(!navState.active){
+    navState.active = true;
+    const btn = document.getElementById('toggleLiveNavBtn');
+    if(btn){
+      btn.innerHTML = "⏹ Stop Navigation";
+      btn.classList.remove('btn-outline');
+      btn.classList.add('btn-primary');
+      btn.style.background = "#DC2626";
+      btn.style.borderColor = "#DC2626";
+    }
+  }
+  navState.arrived = false;
+  navState.offRoute = false;
+
+  const activeCoords = getActiveRouteCoords();
+  if(!activeCoords || activeCoords.length < 2){
+    computeRoute().then(() => {
+      setTimeout(startWalkSimulation, 400);
+    });
+    return;
+  }
+
+  const steps = [];
+  for(let i = 0; i < activeCoords.length - 1; i++){
+    const a = activeCoords[i];
+    const b = activeCoords[i+1];
+    const segDist = haversineMeters(a[0], a[1], b[0], b[1]);
+    const numSubSteps = Math.max(1, Math.round(segDist / 20));
+    for(let j = 0; j < numSubSteps; j++){
+      const frac = j / numSubSteps;
+      steps.push([
+        a[0] + (b[0] - a[0]) * frac,
+        a[1] + (b[1] - a[1]) * frac
+      ]);
+    }
+  }
+  steps.push(activeCoords[activeCoords.length - 1]);
+
+  navState.simCoords = steps;
+  navState.simStepIndex = 0;
+  navState.isSimulating = true;
+
+  if(navState.simTimer){
+    clearInterval(navState.simTimer);
+  }
+
+  navState.simTimer = setInterval(() => {
+    if(navState.simStepIndex >= navState.simCoords.length){
+      stopWalkSimulation();
+      navState.arrived = true;
+      renderLiveNavHUD();
+      return;
+    }
+    const pt = navState.simCoords[navState.simStepIndex];
+    navState.simStepIndex++;
+    handleLocationUpdate(pt[0], pt[1], 6.0, true);
+  }, 1200);
+
+  renderLiveNavHUD();
+}
+
+function stopWalkSimulation(){
+  if(navState.simTimer){
+    clearInterval(navState.simTimer);
+    navState.simTimer = null;
+  }
+  navState.isSimulating = false;
+  renderLiveNavHUD();
+}
+
+function simulateOffRouteStep(){
+  if(!navState.active){
+    startLiveNavigation();
+  }
+  const curLat = navState.currentLat || 19.0195;
+  const curLon = navState.currentLon || 72.8465;
+
+  const devLat = curLat + 0.00035;
+  const devLon = curLon + 0.00055;
+
+  console.log("[Simulation] Step off-route triggered to:", devLat, devLon);
+  handleLocationUpdate(devLat, devLon, 8.0, true);
+}
+
+function useLiveLocationForOrigin(){
+  const btn = document.getElementById('useLiveLocOriginBtn');
+  if(btn) btn.textContent = "📍 Acquiring GPS...";
+
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        if(btn) btn.textContent = "📍 Use My Live Location";
+        if(lat >= 18.88 && lat <= 19.32 && lon >= 72.75 && lon <= 73.02){
+          const originEl = document.getElementById('originInput');
+          if(originEl) originEl.value = `Live GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+          homeState.routeOrigin = `Live GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+          homeState.routeOriginLat = lat;
+          homeState.routeOriginLon = lon;
+          computeRoute();
+        } else {
+          alert(`Your detected GPS (${lat.toFixed(4)}, ${lon.toFixed(4)}) is outside Mumbai metropolitan coverage. Setting origin to Hindmata, Mumbai for live demo.`);
+          const originEl = document.getElementById('originInput');
+          if(originEl) originEl.value = `Live GPS (19.0182, 72.8455)`;
+          homeState.routeOrigin = `Live GPS (19.0182, 72.8455)`;
+          homeState.routeOriginLat = 19.0182;
+          homeState.routeOriginLon = 72.8455;
+          computeRoute();
+        }
+      },
+      (err) => {
+        if(btn) btn.textContent = "📍 Use My Live Location";
+        alert("GPS access not granted or unavailable. Setting origin to Hindmata, Mumbai for live demo.");
+        const originEl = document.getElementById('originInput');
+        if(originEl) originEl.value = `Live GPS (19.0182, 72.8455)`;
+        homeState.routeOrigin = `Live GPS (19.0182, 72.8455)`;
+        homeState.routeOriginLat = 19.0182;
+        homeState.routeOriginLon = 72.8455;
+        computeRoute();
+      },
+      { enableHighAccuracy: true, timeout: 6000 }
+    );
+  } else {
+    if(btn) btn.textContent = "📍 Use My Live Location";
+    const originEl = document.getElementById('originInput');
+    if(originEl) originEl.value = `Live GPS (19.0182, 72.8455)`;
+    homeState.routeOrigin = `Live GPS (19.0182, 72.8455)`;
+    homeState.routeOriginLat = 19.0182;
+    homeState.routeOriginLon = 72.8455;
+    computeRoute();
+  }
+}
+
+function renderLiveNavHUD(){
+  const container = document.getElementById('liveNavHudArea');
+  if(!container) return;
+
+  if(!navState.active){
+    container.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:var(--radius-sm);padding:9px 14px;margin-bottom:var(--space-3);flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:0.84rem;color:#334155;">
+          <span style="font-size:1.2rem;">🚶</span>
+          <span><strong>Real-time Walking Mode:</strong> Track your live movement with dynamic flood-risk rerouting.</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-primary btn-sm" id="startLiveNavBtn" style="background:#004E72;font-weight:700;display:inline-flex;align-items:center;gap:5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Start Live Navigation
+          </button>
+          <button class="btn btn-outline btn-sm" id="simWalkQuickBtn" style="font-weight:600;display:inline-flex;align-items:center;gap:5px;">
+            🚶 Simulate Walk
+          </button>
+        </div>
+      </div>
+    `;
+    const sBtn = document.getElementById('startLiveNavBtn');
+    if(sBtn) sBtn.addEventListener('click', startLiveNavigation);
+    const simBtn = document.getElementById('simWalkQuickBtn');
+    if(simBtn) simBtn.addEventListener('click', () => {
+      startLiveNavigation();
+      setTimeout(startWalkSimulation, 500);
+    });
+    return;
+  }
+
+  const activeRoute = (homeState.routeResult && homeState.routeResult.routes)
+    ? (homeState.routeResult.routes.find(r => r.id === homeState.selectedRouteId) || homeState.routeResult.routes[0])
+    : null;
+
+  const lat = navState.currentLat || 19.0182;
+  const lon = navState.currentLon || 72.8455;
+  const distKm = navState.remainingDistanceKm || (activeRoute ? activeRoute.distance_km : "1.8");
+  const etaMin = navState.remainingDurationMin || (activeRoute ? activeRoute.estimated_duration_min : "14");
+  const routeStatus = activeRoute ? `${activeRoute.name.split('&')[0]} (${activeRoute.risk_category} · ${activeRoute.max_water_depth_cm}cm)` : 'Recalculating...';
+  const rainRate = (homeState.routeResult && homeState.routeResult.query) ? homeState.routeResult.query.rainfall_mm_hr : 0;
+
+  let statusHtml = `
+    <div class="nav-active-pill">
+      <span class="nav-pulse-dot"></span>
+      LIVE NAVIGATION ACTIVE
+    </div>
+  `;
+  if(navState.arrived){
+    statusHtml = `
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#ECFDF5;border:1.5px solid #10B981;color:#065F46;font-size:0.76rem;font-weight:800;padding:4px 10px;border-radius:14px;">
+        🎉 DESTINATION REACHED
+      </div>
+    `;
+  } else if(navState.offRoute){
+    statusHtml = `
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#FEF3C7;border:1.5px solid #F59E0B;color:#B45309;font-size:0.76rem;font-weight:800;padding:4px 10px;border-radius:14px;">
+        ⚠️ OFF ROUTE (${navState.offRouteDistanceM}m) — RECALCULATING
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="live-nav-hud">
+      <div class="live-nav-top">
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${statusHtml}
+          <span style="font-size:0.78rem;color:#475569;">
+            GPS: <code>${lat.toFixed(4)}, ${lon.toFixed(4)}</code> (±${Math.round(navState.accuracy || 8)}m)
+          </span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" id="toggleFollowBtn" style="font-size:0.75rem;padding:3px 8px;font-weight:700;${navState.followMe ? 'background:#EFF6FF;border-color:#3B82F6;color:#1D4ED8;' : ''}">
+            📍 Follow Me: ${navState.followMe ? 'ON' : 'OFF'}
+          </button>
+          <button class="btn btn-outline btn-sm" id="simWalkBtn" style="font-size:0.75rem;padding:3px 8px;font-weight:700;${navState.isSimulating ? 'background:#FEF2F2;border-color:#EF4444;color:#DC2626;' : 'background:#ECFDF5;border-color:#10B981;color:#065F46;'}">
+            ${navState.isSimulating ? '⏸ Pause Walk' : '🚶 Simulate Walk'}
+          </button>
+          <button class="btn btn-outline btn-sm" id="simOffRouteBtn" style="font-size:0.75rem;padding:3px 8px;font-weight:700;background:#FFFBEB;border-color:#F59E0B;color:#B45309;">
+            🔀 Step Off-Route (50m)
+          </button>
+          <button class="btn btn-ghost btn-sm" id="stopNavBtn" style="font-size:0.75rem;padding:3px 8px;color:#DC2626;font-weight:700;border-color:#FCA5A5;">
+            ⏹ End
+          </button>
+        </div>
+      </div>
+
+      ${navState.arrived ? `
+        <div style="background:#ECFDF5;border:2px solid #10B981;padding:12px 16px;border-radius:6px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:1.6rem;line-height:1;">🎉</span>
+          <div>
+            <strong style="color:#065F46;font-size:0.98rem;display:block;">You have arrived at your destination!</strong>
+            <span style="color:#047857;font-size:0.84rem;display:block;margin-top:2px;">
+              You have safely reached within 35 meters of Destination B. Safe journey completed.
+            </span>
+          </div>
+        </div>
+      ` : ''}
+
+      ${navState.offRoute ? `
+        <div style="background:#FFFBEB;border:2px solid #F59E0B;padding:10px 14px;border-radius:6px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.4rem;line-height:1;">⚠️</span>
+          <div>
+            <strong style="color:#92400E;font-size:0.88rem;display:block;">You are off the recommended route (${navState.offRouteDistanceM} meters deviation).</strong>
+            <span style="color:#B45309;font-size:0.80rem;display:block;margin-top:1px;">
+              Recalculating the safest flood-free route from your current location...
+            </span>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="live-nav-grid">
+        <div class="nav-stat-card">
+          <div class="nav-stat-label">Remaining Distance</div>
+          <div class="nav-stat-val" style="color:#004E72;">${distKm} km</div>
+        </div>
+        <div class="nav-stat-card">
+          <div class="nav-stat-label">Estimated Walking Time</div>
+          <div class="nav-stat-val" style="color:#092634;">~${etaMin} min</div>
+        </div>
+        <div class="nav-stat-card" style="grid-column: span 2;">
+          <div class="nav-stat-label">Active Route Safety</div>
+          <div class="nav-stat-val" style="font-size:0.88rem;color:#065F46;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${routeStatus}
+          </div>
+        </div>
+        <div class="nav-stat-card">
+          <div class="nav-stat-label">Rainfall Rate</div>
+          <div class="nav-stat-val" style="color:#2563EB;">${rainRate} mm/hr</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const folBtn = document.getElementById('toggleFollowBtn');
+  if(folBtn) folBtn.addEventListener('click', () => {
+    navState.followMe = !navState.followMe;
+    renderLiveNavHUD();
+    if(navState.followMe && leafletMap && navState.currentLat){
+      leafletMap.panTo([navState.currentLat, navState.currentLon], { animate: true });
+    }
+  });
+
+  const simWBtn = document.getElementById('simWalkBtn');
+  if(simWBtn) simWBtn.addEventListener('click', toggleWalkSimulation);
+
+  const offRBtn = document.getElementById('simOffRouteBtn');
+  if(offRBtn) offRBtn.addEventListener('click', simulateOffRouteStep);
+
+  const stpBtn = document.getElementById('stopNavBtn');
+  if(stpBtn) stpBtn.addEventListener('click', stopLiveNavigation);
+}
+
+const MUMBAI_HOTSPOTS = [
+  {name: "Hindmata Junction", lat: 19.0182, lon: 72.8455, depth_cm: 34, rainfall: "62 mm/hr", desc: "Depressed basin; severe waterlogging up to 34 cm. High stalling hazard for light vehicles."},
+  {name: "Sion Circle Underpass", lat: 19.0405, lon: 72.8625, depth_cm: 26, rainfall: "41 mm/hr", desc: "Surcharging storm drainage; 26 cm pooling near railway culvert."},
+  {name: "Kurla LBS Basin", lat: 19.0662, lon: 72.8780, depth_cm: 28, rainfall: "48 mm/hr", desc: "Mithi river overflow stretch; 28 cm backflow inundation."},
+  {name: "Andheri Subway", lat: 19.1197, lon: 72.8464, depth_cm: 38, rainfall: "78 mm/hr", desc: "Subway completely inundated (38 cm). Traffic closed by traffic police."},
+  {name: "Milan Subway", lat: 19.0880, lon: 72.8420, depth_cm: 31, rainfall: "55 mm/hr", desc: "Low-lying underpass flooded (31 cm). High risk of engine seizure."}
+];
 
 function currentAreaData(){
   const c = CITY_DATA[homeState.city];
   if(!c) return null;
   return c.areas[homeState.area] || null;
+}
+
+function fallbackRouteCalculation(origin, dest){
+  const cleanDest = (dest || "").toLowerCase().trim();
+  const cleanOrigin = (origin || "").toLowerCase().trim();
+
+  // Validate out-of-bounds queries
+  const isDestOutOfBounds = ["kathlal", "pune", "gujarat", "delhi", "ahmedabad", "surat", "panvel", "kalyan"].some(k => cleanDest.includes(k));
+  if(isDestOutOfBounds){
+    return { error: "Destination is outside the supported Mumbai flood-routing area." };
+  }
+  const isOrigOutOfBounds = ["kathlal", "pune", "gujarat", "delhi", "ahmedabad", "surat", "panvel", "kalyan"].some(k => cleanOrigin.includes(k));
+  if(isOrigOutOfBounds){
+    return { error: "Origin is outside the supported Mumbai flood-routing area." };
+  }
+
+  // Validate unresolvable / invalid strings
+  if(cleanDest.includes("xyz_") || cleanDest.includes("invalid") || cleanDest.length < 2){
+    return { error: "Location could not be found. Please select a valid Mumbai location." };
+  }
+  if(cleanOrigin.includes("xyz_") || cleanOrigin.includes("invalid") || cleanOrigin.length < 2){
+    return { error: "Location could not be found. Please select a valid Mumbai location." };
+  }
+
+  const isShivaji = cleanDest.includes("shivaji") || cleanDest.includes("park") || cleanOrigin.includes("shivaji");
+  const isAndheri = (cleanOrigin + " " + cleanDest).includes("andheri") || (cleanOrigin + " " + cleanDest).includes("bandra");
+
+  if(isShivaji){
+    return {
+      query: {
+        origin: origin || "Hindmata / Dadar TT, Mumbai",
+        destination: dest || "Chhatrapati Shivaji Maharaj Park, Mumbai",
+        origin_coords: { lat: 19.0178, lon: 72.8478 },
+        dest_coords: { lat: 19.0272, lon: 72.8374 },
+        rainfall_mm_hr: 0.0,
+        is_live_weather: false,
+        weather_source: "Offline Client Fallback"
+      },
+      safe_route_available: true,
+      routes: [
+        {
+          id: "route_tilak_flyover",
+          name: "Tilak Flyover & L.J. Road Ridge (Elevated Corridor)",
+          color: "#10B981",
+          risk_category: "SAFE",
+          risk_level: "LOW",
+          status_text: "Safest / Low Flood Risk",
+          max_water_depth_cm: 1.5,
+          distance_km: 2.8,
+          estimated_duration_min: 9,
+          risk_score: 18.0,
+          is_recommended: true,
+          coordinates: [
+            [19.0178, 72.8478],
+            [19.0205, 72.8452],
+            [19.0238, 72.8424],
+            [19.0255, 72.8402],
+            [19.0268, 72.8385],
+            [19.0272, 72.8374]
+          ],
+          reason: "100% Passable — elevated flyovers completely bypass Dadar central lowlands."
+        },
+        {
+          id: "route_senapati_arterial",
+          name: "Senapati Bapat Marg & Gokhale Road (Arterial Corridor)",
+          color: "#F59E0B",
+          risk_category: "MODERATE",
+          risk_level: "MODERATE",
+          status_text: "Moderate Risk (Caution)",
+          max_water_depth_cm: 8.0,
+          distance_km: 2.5,
+          estimated_duration_min: 8,
+          risk_score: 42.0,
+          is_recommended: false,
+          coordinates: [
+            [19.0178, 72.8478],
+            [19.0152, 72.8440],
+            [19.0185, 72.8398],
+            [19.0222, 72.8382],
+            [19.0255, 72.8372],
+            [19.0272, 72.8374]
+          ],
+          reason: "Surface arterial road with minor stormwater accumulation."
+        },
+        {
+          id: "route_dadar_lowland",
+          name: "Direct Dadar Station Underpass & Basin (Lowland Corridor)",
+          color: "#EF4444",
+          risk_category: "DANGER",
+          risk_level: "HIGH",
+          status_text: "Dangerous / High Flood Hazard",
+          max_water_depth_cm: 22.0,
+          distance_km: 1.9,
+          estimated_duration_min: 22,
+          risk_score: 74.0,
+          is_recommended: false,
+          coordinates: [
+            [19.0178, 72.8478],
+            [19.0186, 72.8452],
+            [19.0202, 72.8436],
+            [19.0226, 72.8415],
+            [19.0258, 72.8392],
+            [19.0272, 72.8374]
+          ],
+          reason: "Dadar underpass depression prone to rapid inundation."
+        }
+      ]
+    };
+  }
+
+  if(isAndheri){
+    return {
+      query: {
+        origin: origin || "Bandra West, Mumbai",
+        destination: dest || "Andheri East / Airport, Mumbai",
+        origin_coords: { lat: 19.0596, lon: 72.8295 },
+        dest_coords: { lat: 19.1150, lon: 72.8680 },
+        rainfall_mm_hr: 0.0,
+        is_live_weather: false,
+        weather_source: "Offline Client Fallback"
+      },
+      safe_route_available: true,
+      routes: [
+        {
+          id: "route_weh_flyover",
+          name: "Western Express Highway Elevated Corridor (Safest)",
+          color: "#10B981",
+          risk_category: "SAFE",
+          risk_level: "LOW",
+          status_text: "Safest / Low Flood Risk",
+          max_water_depth_cm: 1.5,
+          distance_km: 9.8,
+          estimated_duration_min: 26,
+          risk_score: 16.0,
+          is_recommended: true,
+          coordinates: [
+            [19.0596, 72.8295],
+            [19.0680, 72.8390],
+            [19.0850, 72.8520],
+            [19.1050, 72.8560],
+            [19.1150, 72.8680]
+          ],
+          reason: "Elevated flyover bypasses Milan and Andheri underpasses."
+        },
+        {
+          id: "route_sv_arterial",
+          name: "S.V. Road & Linking Road Surface Arterial",
+          color: "#F59E0B",
+          risk_category: "MODERATE",
+          risk_level: "MODERATE",
+          status_text: "Moderate Risk (Caution)",
+          max_water_depth_cm: 7.5,
+          distance_km: 8.8,
+          estimated_duration_min: 34,
+          risk_score: 38.0,
+          is_recommended: false,
+          coordinates: [
+            [19.0596, 72.8295],
+            [19.0740, 72.8350],
+            [19.0910, 72.8385],
+            [19.1080, 72.8430],
+            [19.1150, 72.8680]
+          ],
+          reason: "Surface road passable with reduced speed."
+        },
+        {
+          id: "route_subways_lowland",
+          name: "Direct Subways Corridor (Milan & Andheri Underpasses)",
+          color: "#EF4444",
+          risk_category: "DANGER",
+          risk_level: "CRITICAL",
+          status_text: "Dangerous / High Flood Hazard",
+          max_water_depth_cm: 32.0,
+          distance_km: 8.2,
+          estimated_duration_min: 52,
+          risk_score: 86.0,
+          is_recommended: false,
+          coordinates: [
+            [19.0596, 72.8295],
+            [19.0880, 72.8420],
+            [19.1020, 72.8440],
+            [19.1197, 72.8464],
+            [19.1150, 72.8680]
+          ],
+          reason: "Subways prone to severe waterlogging."
+        }
+      ]
+    };
+  }
+
+  // Default Mumbai pair: Hindmata -> Kurla
+  return {
+    query: {
+      origin: origin || "Hindmata / Dadar, Mumbai",
+      destination: dest || "Kurla West, Mumbai",
+      origin_coords: { lat: 19.0178, lon: 72.8478 },
+      dest_coords: { lat: 19.0657, lon: 72.8793 },
+      rainfall_mm_hr: 0.0,
+      is_live_weather: false,
+      weather_source: "Offline Client Fallback"
+    },
+    safe_route_available: true,
+    routes: [
+      {
+        id: "route_sclr_flyover",
+        name: "Elevated Flyover & SCLR Express (Ridge Corridor)",
+        color: "#10B981",
+        risk_category: "SAFE",
+        risk_level: "LOW",
+        status_text: "Safest / Low Flood Risk",
+        max_water_depth_cm: 2.0,
+        distance_km: 8.8,
+        estimated_duration_min: 24,
+        risk_score: 17.5,
+        is_recommended: true,
+        coordinates: [
+          [19.0178, 72.8478],
+          [19.0210, 72.8560],
+          [19.0340, 72.8650],
+          [19.0460, 72.8710],
+          [19.0610, 72.8790],
+          [19.0657, 72.8793]
+        ],
+        reason: "Elevated flyover bypasses lowlands along Mithi river."
+      },
+      {
+        id: "route_ba_arterial",
+        name: "Dr. B.A. Road & Central Surface Arterial",
+        color: "#F59E0B",
+        risk_category: "MODERATE",
+        risk_level: "MODERATE",
+        status_text: "Moderate Risk (Caution)",
+        max_water_depth_cm: 8.5,
+        distance_km: 8.0,
+        estimated_duration_min: 28,
+        risk_score: 41.0,
+        is_recommended: false,
+        coordinates: [
+          [19.0178, 72.8478],
+          [19.0275, 72.8525],
+          [19.0380, 72.8590],
+          [19.0480, 72.8660],
+          [19.0585, 72.8740],
+          [19.0657, 72.8793]
+        ],
+        reason: "Surface arterial road with moderate ponding risk."
+      },
+      {
+        id: "route_mithi_lowland",
+        name: "Direct Lowland Basin & Sion Underpass Route",
+        color: "#EF4444",
+        risk_category: "DANGER",
+        risk_level: "HIGH",
+        status_text: "Dangerous / High Flood Hazard",
+        max_water_depth_cm: 28.0,
+        distance_km: 7.4,
+        estimated_duration_min: 45,
+        risk_score: 82.0,
+        is_recommended: false,
+        coordinates: [
+          [19.0178, 72.8478],
+          [19.0280, 72.8520],
+          [19.0405, 72.8625],
+          [19.0520, 72.8710],
+          [19.0662, 72.8780],
+          [19.0657, 72.8793]
+        ],
+        reason: "Lowland basin alongside Mithi river prone to heavy inundation."
+      }
+    ]
+  };
+}
+
+let currentRouteControlInstance = null;
+let toastTimer = null;
+
+function showMapToast(message){
+  const mapWrap = document.querySelector('.map-wrap');
+  if(!mapWrap) return;
+
+  let toast = document.getElementById('mapToastNotice');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'mapToastNotice';
+    toast.className = 'map-toast-msg';
+    mapWrap.appendChild(toast);
+  }
+
+  toast.innerHTML = `<span>ℹ️</span> <span>${message}</span>`;
+  toast.classList.add('show');
+
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2800);
+}
+
+function updateCurrentRouteButtonState(){
+  const btn = document.getElementById('mapCurrentRouteBtn');
+  if(!btn) return;
+  const hasRoute = (homeState.routeResult && (
+    (homeState.routeResult.routes && homeState.routeResult.routes.length > 0) ||
+    homeState.routeResult.safe_route || homeState.routeResult.danger_route
+  )) || navState.active;
+
+  if(hasRoute){
+    btn.classList.add('has-active-route');
+    btn.setAttribute('title', 'Recenter view on current route');
+  } else {
+    btn.classList.remove('has-active-route');
+    btn.setAttribute('title', 'No active route to show');
+  }
+}
+
+function focusCurrentRoute(){
+  if(!leafletMap){
+    console.warn("Leaflet map not initialized.");
+    return;
+  }
+
+  const r = homeState.routeResult;
+  const candidateRoutes = (r && r.routes && r.routes.length > 0)
+    ? r.routes
+    : ((r && (r.safe_route || r.danger_route)) ? [r.safe_route, r.danger_route].filter(Boolean) : []);
+
+  if(!candidateRoutes || candidateRoutes.length === 0){
+    showMapToast("No active route to show.");
+    return;
+  }
+
+  const activeRoute = candidateRoutes.find(c => c.id === homeState.selectedRouteId) || candidateRoutes[0];
+  const destCoords = getDestinationCoords();
+
+  // If live navigation is active: center view between CURRENT GPS position and destination
+  if(navState.active && navState.currentLat && navState.currentLon){
+    navState.followMe = true;
+    renderLiveNavHUD();
+
+    const curLat = navState.currentLat;
+    const curLon = navState.currentLon;
+
+    const coords = activeRoute.coordinates || [];
+    let closestIdx = 0;
+    let minD = Infinity;
+    for(let i = 0; i < coords.length; i++){
+      const d = haversineMeters(curLat, curLon, coords[i][0], coords[i][1]);
+      if(d < minD){
+        minD = d;
+        closestIdx = i;
+      }
+    }
+
+    // Forward coordinates ahead of the user towards destination
+    const forwardCoords = coords.slice(closestIdx);
+    const boundsPoints = [[curLat, curLon]];
+    forwardCoords.forEach(pt => boundsPoints.push(pt));
+
+    if(destCoords && destCoords.lat && destCoords.lon){
+      boundsPoints.push([destCoords.lat, destCoords.lon]);
+    } else if(coords.length > 0){
+      boundsPoints.push(coords[coords.length - 1]);
+    }
+
+    try {
+      const bounds = L.latLngBounds(boundsPoints);
+      leafletMap.fitBounds(bounds.pad(0.12), {
+        animate: true,
+        padding: [45, 45],
+        maxZoom: 16
+      });
+    } catch(err){
+      console.warn("fitBounds failed during live navigation:", err);
+      leafletMap.panTo([curLat, curLon], { animate: true });
+    }
+  } else {
+    // Live navigation NOT active: Fit entire active route corridor from origin to destination
+    const allPoints = [];
+    candidateRoutes.forEach(rt => {
+      if(rt.coordinates){
+        rt.coordinates.forEach(pt => allPoints.push(pt));
+      }
+    });
+
+    if(r.query && r.query.origin_coords){
+      allPoints.push([r.query.origin_coords.lat, r.query.origin_coords.lon]);
+    }
+    if(destCoords && destCoords.lat && destCoords.lon){
+      allPoints.push([destCoords.lat, destCoords.lon]);
+    }
+
+    if(allPoints.length === 0){
+      showMapToast("No active route to show.");
+      return;
+    }
+
+    try {
+      const bounds = L.latLngBounds(allPoints);
+      leafletMap.fitBounds(bounds.pad(0.15), {
+        animate: true,
+        padding: [45, 45],
+        maxZoom: 16
+      });
+    } catch(err){
+      console.warn("fitBounds failed:", err);
+    }
+  }
+}
+
+function addCurrentRouteControlToMap(){
+  if(!leafletMap || typeof L === 'undefined') return;
+
+  if(currentRouteControlInstance){
+    try { leafletMap.removeControl(currentRouteControlInstance); } catch(e){}
+    currentRouteControlInstance = null;
+  }
+
+  const CurrentRouteControl = L.Control.extend({
+    options: {
+      position: 'bottomright'
+    },
+    onAdd: function(map){
+      const container = L.DomUtil.create('div', 'leaflet-control-current-route-wrap');
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'map-current-route-btn';
+      btn.id = 'mapCurrentRouteBtn';
+      btn.setAttribute('title', 'Recenter view on current route');
+      btn.setAttribute('aria-label', 'Current Route Recenter Button');
+      btn.innerHTML = `
+        <span class="btn-icon">📍</span>
+        <span class="btn-text">Current Route</span>
+      `;
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        focusCurrentRoute();
+      });
+
+      container.appendChild(btn);
+      return container;
+    }
+  });
+
+  currentRouteControlInstance = new CurrentRouteControl();
+  currentRouteControlInstance.addTo(leafletMap);
+  updateCurrentRouteButtonState();
+}
+
+// Expose globally for testing & external hooks
+window.focusCurrentRoute = focusCurrentRoute;
+window.showMapToast = showMapToast;
+window.updateCurrentRouteButtonState = updateCurrentRouteButtonState;
+window.addCurrentRouteControlToMap = addCurrentRouteControlToMap;
+
+function initHomeMap(){
+  const canvas = document.getElementById('mapCanvas');
+  if(!canvas) return;
+
+  if(leafletMap){
+    try { leafletMap.remove(); } catch(e){}
+    leafletMap = null;
+    leafletRouteLayers = [];
+    leafletHotspotLayers = [];
+    leafletDrainageLayer = null;
+  }
+
+  if(typeof L === 'undefined'){
+    console.warn("Leaflet L is not loaded; falling back to SVG vector canvas");
+    return;
+  }
+
+  const areaInfo = currentAreaData();
+  const cData = CITY_DATA[homeState.city];
+  let centerLat = 19.0450, centerLon = 72.8580;
+  let zoomLevel = 13;
+
+  if(areaInfo && areaInfo.lat && areaInfo.lon){
+    centerLat = areaInfo.lat;
+    centerLon = areaInfo.lon;
+    zoomLevel = 14;
+  } else if(cData && cData.center){
+    const parts = cData.center.split(',');
+    centerLat = parseFloat(parts[0]);
+    centerLon = parseFloat(parts[1]);
+  }
+
+  canvas.innerHTML = "";
+
+  try {
+    leafletMap = L.map('mapCanvas', {
+      zoomControl: true,
+      scrollWheelZoom: true
+    }).setView([centerLat, centerLon], zoomLevel);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(leafletMap);
+
+    // Add flood risk hotspots
+    MUMBAI_HOTSPOTS.forEach(h => {
+      const circle = L.circle([h.lat, h.lon], {
+        color: '#DC2626',
+        fillColor: '#EF4444',
+        fillOpacity: 0.45,
+        radius: 350,
+        weight: 2
+      }).addTo(leafletMap);
+
+      circle.bindPopup(`
+        <div style="font-family:var(--font);padding:4px;min-width:180px;">
+          <div style="font-weight:700;color:#991B1B;font-size:13px;margin-bottom:3px;">⛔ ${h.name}</div>
+          <div style="font-size:12px;color:#DC2626;font-weight:bold;margin-bottom:4px;">${h.depth_cm} cm Waterlogging (${h.rainfall})</div>
+          <div style="font-size:11px;color:#4B5563;">${h.desc}</div>
+        </div>
+      `);
+      leafletHotspotLayers.push(circle);
+    });
+
+    // Drainage Network Layer
+    if(homeState.layers.drain){
+      fetch('/api/v1/risk/geojson/drainage')
+        .then(res => res.ok ? res.json() : null)
+        .then(geo => {
+          if(geo && leafletMap){
+            leafletDrainageLayer = L.geoJSON(geo, {
+              style: {
+                color: '#0284C7',
+                weight: 2.2,
+                opacity: 0.75
+              }
+            }).addTo(leafletMap);
+          }
+        })
+        .catch(()=>{});
+    }
+
+    if(homeState.routeResult){
+      drawRoutesOnMap(homeState.routeResult);
+    }
+
+    // Recenter Control ("📍 Current Route")
+    addCurrentRouteControlToMap();
+
+    // Map drag listener: pause followMe when user manually navigates away
+    leafletMap.on('dragstart', () => {
+      if(navState.active && navState.followMe){
+        navState.followMe = false;
+        renderLiveNavHUD();
+      }
+    });
+  } catch(err) {
+    console.error("Leaflet initialization failed:", err);
+  }
+}
+
+function selectRoute(routeId){
+  homeState.selectedRouteId = routeId;
+  if(homeState.routeResult){
+    drawRoutesOnMap(homeState.routeResult);
+    renderRouteResult();
+  }
+}
+
+function drawRoutesOnMap(r){
+  if(!leafletMap || !r) return;
+
+  // Clear existing route layers
+  leafletRouteLayers.forEach(l => {
+    try { leafletMap.removeLayer(l); } catch(e){}
+  });
+  leafletRouteLayers = [];
+
+  const boundsGroup = [];
+  const candidateRoutes = r.routes && r.routes.length > 0 ? r.routes : [r.safe_route, r.danger_route].filter(Boolean);
+
+  if(!homeState.selectedRouteId || !candidateRoutes.find(c => c.id === homeState.selectedRouteId)){
+    homeState.selectedRouteId = r.recommended_route_id || (candidateRoutes[0] ? candidateRoutes[0].id : null);
+  }
+
+  // Draw unselected routes first, then the selected route on top
+  const sortedRoutes = [...candidateRoutes].sort((a, b) => {
+    if(a.id === homeState.selectedRouteId) return 1;
+    if(b.id === homeState.selectedRouteId) return -1;
+    return 0;
+  });
+
+  sortedRoutes.forEach(route => {
+    if(!route.coordinates || route.coordinates.length === 0) return;
+    const isSelected = route.id === homeState.selectedRouteId;
+    const routeColor = route.color || (route.risk_category === 'SAFE' ? '#10B981' : (route.risk_category === 'MODERATE' ? '#F59E0B' : '#EF4444'));
+
+    if(isSelected){
+      // Outer glowing aura for selected route
+      const halo = L.polyline(route.coordinates, {
+        color: routeColor,
+        weight: 16,
+        opacity: 0.35,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(leafletMap);
+      leafletRouteLayers.push(halo);
+    }
+
+    // Main route polyline
+    const line = L.polyline(route.coordinates, {
+      color: routeColor,
+      weight: isSelected ? 8 : 5,
+      opacity: isSelected ? 1.0 : 0.50,
+      dashArray: route.stroke_style === 'dashed' ? '8, 8' : null,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(leafletMap);
+
+    line.bindPopup(`
+      <div style="font-family:var(--font);padding:4px;min-width:220px;">
+        <div style="font-weight:800;color:${routeColor};font-size:13px;margin-bottom:2px;">
+          ${route.name}
+        </div>
+        <div style="font-size:11px;color:#0F172A;font-weight:700;margin-bottom:4px;">
+          ${route.badge || (route.risk_category + ' PATH')}
+        </div>
+        <div style="font-size:12px;color:#374151;margin:3px 0;">
+          <strong>Max Depth:</strong> ${route.max_water_depth_cm} cm &nbsp;·&nbsp; <strong>Risk:</strong> ${route.risk_score}/100
+        </div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:6px;">
+          ${route.distance_km} km · ~${route.estimated_duration_min} min
+        </div>
+        <div style="font-size:11px;color:#4B5563;margin-bottom:8px;">${route.reason || route.advisory || ''}</div>
+        <button class="btn btn-sm btn-primary btn-block" style="padding:4px 8px;font-size:11px;background:${routeColor};border-color:${routeColor};" onclick="selectRoute('${route.id}')">
+          ${isSelected ? '✓ Currently Selected' : '👉 Choose This Route'}
+        </button>
+      </div>
+    `);
+
+    line.on('click', () => {
+      selectRoute(route.id);
+    });
+
+    leafletRouteLayers.push(line);
+    boundsGroup.push(line);
+
+    // Hazard markers along dangerous corridors
+    if(route.hazard_points && route.risk_category !== 'SAFE'){
+      route.hazard_points.forEach(hp => {
+        const hMarker = L.marker([hp.lat, hp.lon], {
+          icon: L.divIcon({
+            className: 'hazard-marker-icon',
+            html: `<div style="background:${routeColor};color:white;font-weight:bold;font-size:10px;padding:2px 7px;border-radius:12px;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.35);white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">⚠️ ${hp.name} (${hp.depth_cm}cm)</div>`,
+            iconSize: [130, 22],
+            iconAnchor: [65, 11]
+          })
+        }).addTo(leafletMap);
+        leafletRouteLayers.push(hMarker);
+      });
+    }
+  });
+
+  // Start & Destination markers (distinct A & B icons)
+  if(candidateRoutes.length > 0 && candidateRoutes[0].coordinates.length > 0){
+    const refCoords = candidateRoutes[0].coordinates;
+    const sCoord = (r.query && r.query.origin_coords && r.query.origin_coords.lat) ? [r.query.origin_coords.lat, r.query.origin_coords.lon] : refCoords[0];
+    const eCoord = (r.query && r.query.dest_coords && r.query.dest_coords.lat) ? [r.query.dest_coords.lat, r.query.dest_coords.lon] : refCoords[refCoords.length - 1];
+    const originName = (r.query && r.query.origin ? r.query.origin.split(',')[0] : 'Start').trim();
+    const destName = (r.query && r.query.destination ? r.query.destination.split(',')[0] : 'Destination').trim();
+
+    // START MARKER "A" (Shown when not in active walking navigation, as 🔵 YOU marker represents live user)
+    if(!navState.active){
+      const sMarker = L.marker(sCoord, {
+        icon: L.divIcon({
+          className: 'start-marker-icon',
+          html: `
+            <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+              <div style="background:#10B981;color:white;font-weight:900;font-size:14px;width:34px;height:34px;border-radius:50%;border:3px solid white;box-shadow:0 3px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;">A</div>
+              <div style="background:#064E3B;color:#A7F3D0;font-size:10px;font-weight:800;letter-spacing:0.4px;padding:2px 7px;border-radius:8px;border:1px solid #10B981;margin-top:2px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,0.3);">🟢 START: ${originName}</div>
+            </div>
+          `,
+          iconSize: [130, 52],
+          iconAnchor: [65, 26]
+        })
+      }).addTo(leafletMap);
+      sMarker.bindPopup(`<strong>📍 Departure Point (A):</strong> ${originName}`);
+      leafletRouteLayers.push(sMarker);
+      boundsGroup.push(sMarker);
+    }
+
+    // DESTINATION MARKER "B" (Vibrant Red circle + arrival label - always visible)
+    const eMarker = L.marker(eCoord, {
+      icon: L.divIcon({
+        className: 'dest-marker-icon',
+        html: `
+          <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+            <div style="background:#EF4444;color:white;font-weight:900;font-size:14px;width:34px;height:34px;border-radius:50%;border:3px solid white;box-shadow:0 3px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;">B</div>
+            <div style="background:#7F1D1D;color:#FECACA;font-size:10px;font-weight:800;letter-spacing:0.4px;padding:2px 7px;border-radius:8px;border:1px solid #EF4444;margin-top:2px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,0.3);">🏁 DESTINATION: ${destName}</div>
+          </div>
+        `,
+        iconSize: [150, 52],
+        iconAnchor: [75, 26]
+      })
+    }).addTo(leafletMap);
+    eMarker.bindPopup(`<strong>🏁 Arrival Destination (B):</strong> ${destName}`);
+    leafletRouteLayers.push(eMarker);
+    boundsGroup.push(eMarker);
+  }
+
+  // Automatically fit map view to show all routes if not actively following live user
+  if(boundsGroup.length > 0 && (!navState.active || !navState.followMe)){
+    try {
+      const group = L.featureGroup(boundsGroup);
+      leafletMap.fitBounds(group.getBounds().pad(0.18));
+    } catch(e){}
+  } else if(navState.active && navState.followMe && navState.currentLat){
+    leafletMap.panTo([navState.currentLat, navState.currentLon], { animate: true });
+  }
+  updateCurrentRouteButtonState();
 }
 
 function renderHome(){
@@ -839,8 +2394,8 @@ function renderHome(){
   paint(`
     <div class="container">
       <div class="page-head">
-        <h1>Flood Map</h1>
-        <p>Check current and forecast flood conditions for your area before you step out.</p>
+        <h1>Flood Map & Safe Route Navigation</h1>
+        <p>Real-time hydrodynamic flood nowcasting with live route hazard analysis. Compare safe elevated corridors vs submerged danger paths.</p>
       </div>
 
       <div class="locate-bar">
@@ -898,11 +2453,29 @@ function renderHome(){
           </div>
 
           <div class="legend-box">
-            <div class="legend-title">Flood depth</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#2E8B57"></span>Low — &lt;5 cm</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#D9A404"></span>Moderate — 5–15 cm</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#E2622B"></span>High — 15–30 cm</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#C22B2B"></span>Critical — &gt;30 cm</div>
+            <div class="legend-title">Route & Navigation Legend</div>
+            <div class="legend-row">
+              <span style="width:16px;height:5px;background:#10B981;border-radius:2px;display:inline-block;margin-right:6px;"></span>
+              <strong style="color:#065F46;">🟢 Safest Route (Low Risk)</strong>
+            </div>
+            <div class="legend-row">
+              <span style="width:16px;height:5px;background:#F59E0B;border-radius:2px;display:inline-block;margin-right:6px;"></span>
+              <strong style="color:#B45309;">🟠 Moderate Risk (Caution)</strong>
+            </div>
+            <div class="legend-row">
+              <span style="width:16px;height:5px;background:#EF4444;border-radius:2px;display:inline-block;margin-right:6px;"></span>
+              <strong style="color:#B91C1C;">🔴 Dangerous Route (High Risk)</strong>
+            </div>
+            <div class="legend-row" style="margin-top:6px;padding-top:4px;border-top:1px solid #E5E7EB;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#10B981;color:white;border-radius:50%;font-size:10px;font-weight:900;margin-right:6px;">A</span>
+              <span><strong>Start Location (A)</strong></span>
+            </div>
+            <div class="legend-row">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#EF4444;color:white;border-radius:50%;font-size:10px;font-weight:900;margin-right:6px;">B</span>
+              <span><strong>Destination (B)</strong></span>
+            </div>
+            <div class="legend-row"><span class="legend-swatch" style="background:#EF4444;border-radius:50%;"></span>Flood Hotspot (&gt;25 cm depth)</div>
+            <div class="legend-row"><span class="legend-swatch" style="background:#0284C7;"></span>Drainage / River Channel</div>
           </div>
         </div>
 
@@ -925,21 +2498,67 @@ function renderHome(){
 
       <div class="section">
         <div class="panel panel-pad">
-          <h3 style="font-size:1rem;margin-bottom:4px;">Safe route planner</h3>
-          <p style="margin-bottom:var(--space-4);">Routes account for predicted flooding over the next few hours, not only current conditions.</p>
-          <div class="route-grid">
-            <div class="locate-field">
-              <label>From</label>
-              <select disabled><option>My Location</option></select>
+          <div class="flex-between" style="margin-bottom:var(--space-3);">
+            <div>
+              <h3 style="font-size:1.1rem;margin-bottom:4px;color:var(--navy);">Safe Route Planner</h3>
+              <p>Find flood-safe navigation corridors. All candidate routes are displayed simultaneously with risk-based colors.</p>
             </div>
-            <div class="locate-field">
-              <label for="destInput">To</label>
-              <input type="text" id="destInput" placeholder="Enter destination" />
-            </div>
-            <div class="locate-field" style="flex:none;">
-              <button class="btn btn-primary" id="checkRouteBtn">Check Safe Route</button>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="safe-badge-pill">🟢 Safest</span>
+              <span style="background:#FEF3C7;color:#D97706;border:1px solid #FCD34D;font-weight:700;font-size:0.75rem;padding:3px 8px;border-radius:12px;">🟠 Moderate</span>
+              <span class="danger-badge-pill">🔴 Dangerous</span>
             </div>
           </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:var(--space-4);flex-wrap:wrap;gap:12px;">
+            <div style="flex:1;min-width:240px;">
+              <label class="field-label" for="routeWeatherModeSelect" style="font-weight:700;color:var(--navy);display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                <span>🌧️ Weather Evaluation Mode:</span>
+              </label>
+              <select id="routeWeatherModeSelect" style="width:100%;padding:8px 12px;font-size:0.85rem;border-radius:var(--radius-sm);border:1.5px solid #004E72;background:white;font-weight:600;color:var(--navy);cursor:pointer;">
+                <option value="live">🟢 Live OpenWeatherMap API (Real-time Rainfall)</option>
+                <option value="monsoon_80">🔴 Simulated Monsoon Deluge (80 mm/hr — High Flood Risk)</option>
+                <option value="moderate_35">🟠 Simulated Heavy Rain (35 mm/hr — Moderate Ponding)</option>
+                <option value="dry_0">🟢 Simulated Dry Weather (0 mm/hr — Completely Safe)</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" style="margin-bottom:4px;">Quick Hotspot Presets:</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-outline btn-sm route-preset-btn" data-preset="hindmata_shivaji">Hindmata → Shivaji Park</button>
+                <button class="btn btn-outline btn-sm route-preset-btn" data-preset="hindmata_kurla">Hindmata → Kurla</button>
+                <button class="btn btn-outline btn-sm route-preset-btn" data-preset="bandra_andheri">Bandra → Andheri</button>
+                <button class="btn btn-outline btn-sm route-preset-btn" data-preset="sion_dadar">Sion → Dadar TT</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="route-grid">
+            <div class="locate-field">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <label for="originInput" style="margin-bottom:0;">From (Origin)</label>
+                <button type="button" id="useLiveLocOriginBtn" style="background:none;border:none;color:#004E72;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:0;">
+                  📍 Use My Live Location
+                </button>
+              </div>
+              <input type="text" id="originInput" value="${homeState.routeOrigin || 'Hindmata / Dadar, Mumbai'}" placeholder="Enter starting point" />
+            </div>
+            <div class="locate-field">
+              <label for="destInput">To (Destination)</label>
+              <input type="text" id="destInput" value="${homeState.routeDest || 'Chhatrapati Shivaji Maharaj Park'}" placeholder="Enter destination" />
+            </div>
+            <div class="locate-field" style="flex:none;display:flex;gap:8px;align-items:flex-end;">
+              <button class="btn btn-primary" id="checkRouteBtn" style="padding:10px 18px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-right:6px;"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Check Safe Route
+              </button>
+              <button class="btn btn-outline" id="toggleLiveNavBtn" style="padding:10px 16px;font-weight:700;">
+                ${navState.active ? '⏹ Stop Navigation' : '▶ Start Live Navigation'}
+              </button>
+            </div>
+          </div>
+
+          <div id="liveNavHudArea"></div>
 
           <div id="routeResultArea"></div>
         </div>
@@ -966,7 +2585,79 @@ function renderHome(){
   document.getElementById('useMyLocationBtn').addEventListener('click', requestGeolocation);
   document.getElementById('checkRouteBtn').addEventListener('click', computeRoute);
 
-  if(homeState.routeResult){ renderRouteResult(); }
+  const useLiveLocBtn = document.getElementById('useLiveLocOriginBtn');
+  if(useLiveLocBtn) useLiveLocBtn.addEventListener('click', useLiveLocationForOrigin);
+  const toggleNavBtn = document.getElementById('toggleLiveNavBtn');
+  if(toggleNavBtn) toggleNavBtn.addEventListener('click', toggleLiveNavigation);
+
+  // Input listeners: Discard previous coordinates and route when input text changes!
+  const origInputEl = document.getElementById('originInput');
+  const destInputEl = document.getElementById('destInput');
+  if(origInputEl){
+    origInputEl.addEventListener('input', e => {
+      homeState.routeOrigin = e.target.value;
+      if(homeState.routeResult || homeState.routeError){
+        homeState.routeResult = null;
+        homeState.routeError = null;
+        if(leafletMap){
+          leafletRouteLayers.forEach(l => { try { leafletMap.removeLayer(l); } catch(err){} });
+          leafletRouteLayers = [];
+        }
+        renderRouteResult();
+        renderLiveNavHUD();
+        updateCurrentRouteButtonState();
+      }
+    });
+  }
+  if(destInputEl){
+    destInputEl.addEventListener('input', e => {
+      homeState.routeDest = e.target.value;
+      if(homeState.routeResult || homeState.routeError){
+        homeState.routeResult = null;
+        homeState.routeError = null;
+        if(leafletMap){
+          leafletRouteLayers.forEach(l => { try { leafletMap.removeLayer(l); } catch(err){} });
+          leafletRouteLayers = [];
+        }
+        renderRouteResult();
+        renderLiveNavHUD();
+        updateCurrentRouteButtonState();
+      }
+    });
+  }
+
+  // Preset buttons
+  document.querySelectorAll('.route-preset-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const preset = e.target.getAttribute('data-preset');
+      const originEl = document.getElementById('originInput');
+      const destEl = document.getElementById('destInput');
+      if(preset === 'hindmata_shivaji'){
+        if(originEl) originEl.value = "Hindmata / Dadar, Mumbai";
+        if(destEl) destEl.value = "Chhatrapati Shivaji Maharaj Park";
+      } else if(preset === 'hindmata_kurla'){
+        if(originEl) originEl.value = "Hindmata / Dadar, Mumbai";
+        if(destEl) destEl.value = "Kurla West, Mumbai";
+      } else if(preset === 'bandra_andheri'){
+        if(originEl) originEl.value = "Bandra West, Mumbai";
+        if(destEl) destEl.value = "Andheri East / Airport, Mumbai";
+      } else if(preset === 'sion_dadar'){
+        if(originEl) originEl.value = "Sion Circle, Mumbai";
+        if(destEl) destEl.value = "Dadar TT, Mumbai";
+      }
+      computeRoute();
+    });
+  });
+
+  // Initialize Leaflet Map after DOM paint
+  setTimeout(() => {
+    initHomeMap();
+    if(homeState.routeResult){
+      renderRouteResult();
+      drawRoutesOnMap(homeState.routeResult);
+    }
+    renderLiveNavHUD();
+  }, 50);
 }
 
 function requestGeolocation(){
@@ -976,7 +2667,7 @@ function requestGeolocation(){
     return;
   }
   navigator.geolocation.getCurrentPosition(
-    ()=>{
+    (pos)=>{
       homeState.geoDenied = false;
       homeState.city = "Mumbai";
       homeState.area = "Hindmata";
@@ -990,53 +2681,245 @@ function requestGeolocation(){
   );
 }
 
-function computeRoute(){
-  const dest = document.getElementById('destInput').value.trim();
-  if(!dest){ document.getElementById('destInput').focus(); return; }
-  const areaInfo = currentAreaData();
-  const highRisk = areaInfo && (areaInfo.severity === "HIGH" || areaInfo.severity === "CRITICAL");
-  homeState.routeResult = {
-    dest: dest,
-    current: {
-      risk: highRisk ? "HIGH" : "MODERATE",
-      depth: highRisk ? "22 cm expected en route" : "6 cm expected en route",
-      forecast: "Within next 90 minutes"
-    },
-    alternative: highRisk ? {
-      extraTime: "+9 minutes",
-      exposure: "Avoids 2 flood-prone stretches"
-    } : null
-  };
+async function computeRoute(){
+  const originEl = document.getElementById('originInput');
+  const destEl = document.getElementById('destInput');
+  const weatherModeEl = document.getElementById('routeWeatherModeSelect');
+  const origin = (originEl ? originEl.value.trim() : '') || 'Hindmata / Dadar, Mumbai';
+  const dest = destEl ? destEl.value.trim() : '';
+
+  if(!dest){
+    if(destEl) destEl.focus();
+    return;
+  }
+
+  homeState.routeOrigin = origin;
+  homeState.routeDest = dest;
+  homeState.routeError = null;
+
+  const btn = document.getElementById('checkRouteBtn');
+  if(btn){ btn.disabled = true; btn.textContent = "Calculating Safe Route..."; }
+
+  const mode = weatherModeEl ? weatherModeEl.value : 'live';
+  let rainQuery = '';
+  if(mode === 'monsoon_80'){
+    rainQuery = '&rainfall_mm_hr=80.0';
+  } else if(mode === 'moderate_35'){
+    rainQuery = '&rainfall_mm_hr=35.0';
+  } else if(mode === 'dry_0'){
+    rainQuery = '&rainfall_mm_hr=0.0';
+  } else {
+    rainQuery = '&force_refresh=true';
+  }
+
+  let originParam = `origin=${encodeURIComponent(origin)}`;
+  if(homeState.routeOriginLat && homeState.routeOriginLon && origin.toLowerCase().includes("gps")){
+    originParam += `&origin_lat=${homeState.routeOriginLat}&origin_lon=${homeState.routeOriginLon}`;
+  } else if(navState.active && navState.currentLat && navState.currentLon){
+    originParam = `origin=Live+GPS&origin_lat=${navState.currentLat}&origin_lon=${navState.currentLon}`;
+  }
+
+  try {
+    const res = await fetch(`/api/v1/routing/safe-route?${originParam}&destination=${encodeURIComponent(dest)}${rainQuery}`);
+    if(res.ok){
+      homeState.routeResult = await res.json();
+      homeState.routeError = null;
+      if(homeState.routeResult.is_arrived){
+        navState.arrived = true;
+      }
+    } else {
+      const errData = await res.json().catch(() => null);
+      const errMsg = (errData && errData.detail) ? errData.detail : "Route calculation failed.";
+      homeState.routeResult = null;
+      homeState.routeError = errMsg;
+      if(leafletMap){
+        leafletRouteLayers.forEach(l => { try { leafletMap.removeLayer(l); } catch(err){} });
+        leafletRouteLayers = [];
+      }
+    }
+  } catch(e) {
+    console.warn("Using client-side route calculation fallback:", e);
+    const fb = fallbackRouteCalculation(origin, dest);
+    if(fb && fb.error){
+      homeState.routeResult = null;
+      homeState.routeError = fb.error;
+      if(leafletMap){
+        leafletRouteLayers.forEach(l => { try { leafletMap.removeLayer(l); } catch(err){} });
+        leafletRouteLayers = [];
+      }
+    } else {
+      homeState.routeResult = fb;
+      homeState.routeError = null;
+    }
+  } finally {
+    if(btn){
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-right:6px;"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Check Safe Route`;
+    }
+  }
+
   renderRouteResult();
+  renderLiveNavHUD();
+  if(leafletMap && homeState.routeResult){
+    drawRoutesOnMap(homeState.routeResult);
+  } else {
+    updateCurrentRouteButtonState();
+  }
 }
 
 function renderRouteResult(){
-  const r = homeState.routeResult;
   const el = document.getElementById('routeResultArea');
-  if(!el || !r) return;
-  el.innerHTML = `
-    <div class="route-result">
-      <div class="route-card">
-        <h4>Current Route <span style="font-weight:400;color:var(--text-faint);">to ${r.dest}</span></h4>
-        <div class="route-line"><span>Flood Risk</span><span>${r.current.risk}</span></div>
-        <div class="route-line"><span>Predicted Depth</span><span>${r.current.depth}</span></div>
-        <div class="route-line"><span>Forecast Time</span><span>${r.current.forecast}</span></div>
+  if(!el) return;
+
+  if(homeState.routeError){
+    const err = homeState.routeError;
+    const isOutOfBounds = err.toLowerCase().includes("outside");
+    el.innerHTML = `
+      <div style="background:#FEF2F2;border:2px solid #EF4444;border-radius:var(--radius-md);padding:16px 20px;margin-top:var(--space-4);">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <span style="font-size:1.6rem;line-height:1;">⚠️</span>
+          <div style="flex:1;">
+            <div style="font-weight:800;color:#991B1B;font-size:1.02rem;margin-bottom:4px;">
+              Route Navigation Notice
+            </div>
+            <div style="color:#B91C1C;font-size:0.92rem;font-weight:600;line-height:1.4;">
+              ${err}
+            </div>
+            ${isOutOfBounds ? `
+              <div style="margin-top:10px;font-size:0.82rem;color:#7F1D1D;background:#FEE2E2;padding:8px 12px;border-radius:4px;border:1px solid #FCA5A5;line-height:1.45;">
+                <strong>Supported Operational Boundary:</strong> Greater Mumbai Region (18.88°N to 19.32°N, 72.75°E to 73.02°E). Locations outside Mumbai (e.g. Kathlal, Gujarat, Pune) are beyond municipal hydrodynamic sensor coverage. Please enter a valid Mumbai location.
+              </div>
+            ` : `
+              <div style="margin-top:10px;font-size:0.82rem;color:#7F1D1D;background:#FEE2E2;padding:8px 12px;border-radius:4px;border:1px solid #FCA5A5;line-height:1.45;">
+                Please verify the destination name or choose one of the Quick Hotspot Presets above.
+              </div>
+            `}
+          </div>
+        </div>
       </div>
-      ${r.alternative ? `
-      <div class="route-card alt">
-        <h4>Recommended Alternative</h4>
-        <div class="route-line"><span>Expected additional travel time</span><span>${r.alternative.extraTime}</span></div>
-        <div class="route-line"><span>Flood exposure</span><span>${r.alternative.exposure}</span></div>
-        <button class="btn btn-orange btn-sm mt-4" id="useAltRouteBtn">Use Recommended Route</button>
-      </div>` : ``}
+    `;
+    return;
+  }
+
+  const r = homeState.routeResult;
+  if(!r){ el.innerHTML = ''; return; }
+
+  const q = r.query || {};
+  const isLive = !!q.is_live_weather;
+  const candidateRoutes = r.routes && r.routes.length > 0 ? r.routes : [r.safe_route, r.danger_route].filter(Boolean);
+  const selectedId = homeState.selectedRouteId || (candidateRoutes[0] ? candidateRoutes[0].id : null);
+  const noSafeWarning = !r.safe_route_available || r.no_safe_route_warning;
+
+  el.innerHTML = `
+    <!-- LIVE WEATHER & HYDROLOGY BANNER -->
+    <div style="margin-top:var(--space-4);padding:10px 16px;border-radius:var(--radius-sm);background:${isLive ? '#EFF6FF' : '#FFFBEB'};border:1.5px solid ${isLive ? '#93C5FD' : '#FDE68A'};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#1E3A8A;">
+        <span style="font-size:1.1rem;">${isLive ? '📡' : '🧪'}</span>
+        <span>
+          <strong>Rainfall Rate:</strong> <code>${q.rainfall_mm_hr !== undefined ? q.rainfall_mm_hr : 0} mm/hr</code> &nbsp;|&nbsp;
+          <strong>Source:</strong> ${q.weather_source || 'OpenWeatherMap'} 
+          <span style="background:${isLive ? '#2563EB' : '#D97706'};color:white;font-weight:700;font-size:0.7rem;padding:2px 8px;border-radius:10px;margin-left:4px;">
+            ${isLive ? 'LIVE' : 'SIMULATION'}
+          </span>
+          ${q.temp_c ? `&nbsp;·&nbsp; ${q.temp_c}°C ${q.weather_condition || ''}` : ''}
+        </span>
+      </div>
+      <div style="font-size:0.75rem;color:#4B5563;">
+        Engine: <strong>CartoDEM 30m + OSM Drainage + Rational Runoff Hydrodynamics</strong>
+      </div>
+    </div>
+
+    ${noSafeWarning ? `
+      <!-- NO SAFE ROUTE EMERGENCY ADVISORY -->
+      <div style="margin-top:var(--space-3);background:#FEF2F2;border:2px solid #DC2626;border-radius:var(--radius-sm);padding:12px 16px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:1.6rem;line-height:1;">⛔</span>
+        <div>
+          <strong style="color:#991B1B;font-size:0.95rem;display:block;">No Safe Route Currently Available</strong>
+          <span style="font-size:0.84rem;color:#B91C1C;line-height:1.4;display:block;margin-top:2px;">
+            ${r.no_safe_route_warning || 'All candidate corridors exceed safe water depth and flood risk limits under current rainfall (' + q.rainfall_mm_hr + ' mm/hr). High vehicle stalling and submersion danger.'}
+          </span>
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- ALL CANDIDATE ROUTES SIDE-BY-SIDE -->
+    <div class="route-result" style="margin-top:var(--space-4);display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:var(--space-4);">
+      ${candidateRoutes.map(cand => {
+        const isSelected = cand.id === selectedId;
+        const cColor = cand.color || (cand.risk_category === 'SAFE' ? '#10B981' : (cand.risk_category === 'MODERATE' ? '#F59E0B' : '#EF4444'));
+        const bg = isSelected ? '#FFFFFF' : '#FAFAFA';
+        const ring = isSelected ? `box-shadow: 0 0 0 3px ${cColor}, 0 6px 18px rgba(0,0,0,0.15);` : 'box-shadow: 0 2px 6px rgba(0,0,0,0.06);';
+        const isRec = cand.is_recommended;
+        const recBadgeText = cand.recommendation_badge || (isRec ? (r.safe_route_available ? '⭐ RECOMMENDED ROUTE' : '⚠️ LEAST HAZARDOUS ROUTE') : '');
+
+        return `
+          <div class="route-card ${isSelected ? 'active-selection' : ''}" style="border:2.5px solid ${cColor};background:${bg};border-radius:var(--radius-md);padding:var(--space-4);display:flex;flex-direction:column;justify-content:space-between;${ring};transition:all 0.2s ease;">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
+                ${recBadgeText ? `
+                  <span style="background:${r.safe_route_available ? '#2563EB' : '#B45309'};color:white;font-size:0.70rem;font-weight:800;letter-spacing:0.4px;padding:3px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;">
+                    ${recBadgeText}
+                  </span>
+                ` : `<span></span>`}
+                <span style="background:${cColor};color:white;font-weight:800;padding:3px 9px;border-radius:10px;font-size:0.72rem;white-space:nowrap;letter-spacing:0.5px;">
+                  ${cand.risk_category || 'EVALUATED'}
+                </span>
+              </div>
+
+              <div style="margin-bottom:var(--space-3);">
+                <h4 style="color:#0F172A;font-size:1.02rem;display:flex;align-items:flex-start;gap:8px;margin:0 0 4px 0;line-height:1.3;">
+                  <span style="width:14px;height:14px;border-radius:50%;background:${cColor};display:inline-block;flex-shrink:0;margin-top:3px;"></span>
+                  ${cand.name}
+                </h4>
+                <div style="font-size:0.78rem;color:#64748B;font-weight:600;">
+                  ${cand.status_text || ''}
+                </div>
+              </div>
+
+              <div class="route-line" style="margin-top:6px;padding:4px 0;border-bottom:1px solid #F1F5F9;">
+                <span style="color:#475569;font-size:0.85rem;">Max Water Depth:</span>
+                <span style="color:${cColor};font-weight:800;font-size:0.95rem;">${cand.max_water_depth_cm} cm</span>
+              </div>
+              <div class="route-line" style="padding:4px 0;border-bottom:1px solid #F1F5F9;">
+                <span style="color:#475569;font-size:0.85rem;">Distance & Time:</span>
+                <span style="font-weight:700;color:#0F172A;font-size:0.88rem;">${cand.distance_km} km · ~${cand.estimated_duration_min} min</span>
+              </div>
+              <div class="route-line" style="padding:4px 0;border-bottom:1px solid #F1F5F9;">
+                <span style="color:#475569;font-size:0.85rem;">Hydrological Risk:</span>
+                <span style="font-weight:800;color:${cColor};font-size:0.9rem;">${cand.risk_score} / 100 (${cand.risk_level})</span>
+              </div>
+
+              <div style="margin-top:var(--space-3);font-size:0.8rem;background:#F8FAFC;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid #E2E8F0;color:#334155;line-height:1.4;">
+                <strong>Corridor Analysis:</strong> ${cand.reason || cand.advisory}
+              </div>
+            </div>
+
+            <div style="margin-top:var(--space-4);">
+              ${isSelected ? `
+                <button class="btn btn-primary btn-block btn-sm" disabled style="background:#0F172A;border-color:#0F172A;color:white;font-weight:700;cursor:default;">
+                  ✓ Currently Selected & Focused
+                </button>
+              ` : `
+                <button class="btn btn-outline btn-block btn-sm select-route-btn" data-route-id="${cand.id}" style="color:${cColor};border-color:${cColor};font-weight:700;">
+                  👉 Choose This Route
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('')}
     </div>
   `;
-  const altBtn = document.getElementById('useAltRouteBtn');
-  if(altBtn){
-    altBtn.addEventListener('click', ()=>{
-      alert("Recommended route selected. (Prototype only — no live navigation integration yet.)");
+
+  // Attach button click handlers
+  document.querySelectorAll('.select-route-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const rId = e.currentTarget.getAttribute('data-route-id');
+      if(rId){
+        selectRoute(rId);
+      }
     });
-  }
+  });
 }
 
 /* =====================================================================
