@@ -39,6 +39,7 @@ def test_open_weather_map_mocked(mock_get):
     print("  [PASS] Test 1: OpenWeatherMap Deterministic HTTP Mocking")
 
 
+@patch.dict(os.environ, {"OPENWEATHER_API_KEY": ""})
 @patch("requests.get")
 def test_open_meteo_fallback_mocked(mock_get):
     """Test 2: Deterministic test for secondary Open-Meteo fallback using HTTP mock."""
@@ -58,6 +59,7 @@ def test_open_meteo_fallback_mocked(mock_get):
     print("  [PASS] Test 2: Open-Meteo Secondary Fallback HTTP Mocking")
 
 
+@patch.dict(os.environ, {"OPENWEATHER_API_KEY": ""})
 @patch("requests.get")
 def test_simulated_weather_fallback(mock_get):
     """Test 3: Deterministic test for SIMULATED_WEATHER_FALLBACK when all HTTP requests fail/timeout."""

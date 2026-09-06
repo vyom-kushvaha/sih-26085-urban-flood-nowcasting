@@ -17,10 +17,20 @@ Produces:
 - Data Quality & Transparency Disclaimer Labels
 """
 
+import os
+import sys
 import math
 from typing import Dict, Any, List
+
+# Ensure project root is in sys.path for ml_model and hybrid_model
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 from dem_processor import get_dem_processor
 from drainage_processor import get_drainage_processor
+from ml_model import get_ml_model, FloodMLModel
+from hybrid_model import calculate_hybrid_risk
 
 
 class RiskEngine:
@@ -104,23 +114,55 @@ class RiskEngine:
             elif accumulated_depth_cm > 5.0:
                 composite_score = max(composite_score, 65.0)
 
-        composite_score = min(100.0, round(composite_score, 1))
+        physics_score = min(100.0, round(composite_score, 1))
 
-        # 6. Risk Level Categorization
-        if composite_score < 25.0:
+        # 6. ML Feature Extraction & Hybrid Risk Integration
+        ml_model = get_ml_model()
+        features = ml_model.prepare_features(
+            rainfall_mm_hr=rainfall_mm_hr,
+            water_depth_cm=accumulated_depth_cm,
+            slope_percent=slope_pct,
+            drainage_capacity_mm_hr=effective_drainage,
+            blockage_pct=blockage_pct,
+        )
+
+        # Predict ML score (returns None if untrained / unavailable)
+        ml_score = ml_model.predict_risk(features)
+
+        # Hybrid risk coupling (70% physics, 30% ML; graceful fallback to physics if ML is None)
+        physics_weight = 0.7
+        ml_weight = 0.3
+        hybrid_score = calculate_hybrid_risk(
+            physics_risk=physics_score,
+            ml_risk=ml_score,
+            physics_weight=physics_weight,
+            ml_weight=ml_weight,
+        )
+
+        # Safety Enforcement: Critical physical water accumulation cannot be diluted by ML
+        if accumulated_depth_cm > 15.0:
+            hybrid_score = max(hybrid_score, 85.0)
+        elif accumulated_depth_cm > 5.0:
+            hybrid_score = max(hybrid_score, 65.0)
+
+        hybrid_score = min(100.0, round(hybrid_score, 1))
+        calibration_mode = "ml_calibrated" if ml_score is not None else "physics_fallback"
+
+        # 7. Risk Level Categorization (driven by authoritative hybrid_score)
+        if hybrid_score < 25.0:
             risk_level = "LOW"
             color_code = "#22c55e"  # Green
-        elif composite_score < 55.0:
+        elif hybrid_score < 55.0:
             risk_level = "MODERATE"
             color_code = "#eab308"  # Yellow
-        elif composite_score < 80.0:
+        elif hybrid_score < 80.0:
             risk_level = "HIGH"
             color_code = "#f97316"  # Orange
         else:
             risk_level = "CRITICAL"
             color_code = "#ef4444"  # Red
 
-        # 7. Generate Explainable Contributing Factors
+        # 8. Generate Explainable Contributing Factors
         contributing_factors = []
         if rainfall_mm_hr > 50.0:
             contributing_factors.append(f"Heavy Rainfall ({rainfall_mm_hr} mm/hr)")
@@ -140,7 +182,13 @@ class RiskEngine:
 
         return {
             "coordinates": {"lat": lat, "lon": lon},
-            "risk_score": composite_score,
+            "risk_score": hybrid_score,
+            "physics_score": physics_score,
+            "ml_score": ml_score,
+            "hybrid_score": hybrid_score,
+            "physics_weight": physics_weight,
+            "ml_weight": ml_weight,
+            "calibration_mode": calibration_mode,
             "risk_level": risk_level,
             "color_code": color_code,
             "water_depth_cm": accumulated_depth_cm,
@@ -167,7 +215,8 @@ class RiskEngine:
             "data_quality": {
                 "rainfall": "Realtime / Input",
                 "dem_elevation": "Observed CartoDEM 30m" if dem_info["in_dem_coverage"] else "Estimated Urban Default",
-                "drainage": drainage_info["capacity_source"]
+                "drainage": drainage_info["capacity_source"],
+                "model_calibration": calibration_mode
             }
         }
 

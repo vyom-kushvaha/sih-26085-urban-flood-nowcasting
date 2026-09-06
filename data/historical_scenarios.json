@@ -1,0 +1,272 @@
+{
+  "schema_version": "1.0.0",
+  "disclaimer": "All rainfall values are sourced directly from official publications by IMD, MHA, MOSDAC/SAC/ISRO, and PIB. No values are fabricated. Spatial flood-depth ground truth is marked NOT AVAILABLE as authoritative observed water-depth rasters are not published.",
+  "scenarios": [
+    {
+      "scenario_id": "2005_deluge",
+      "event_name": "Mumbai 26 July 2005 Cloudburst & Deluge",
+      "event_date": "2005-07-26 to 2005-07-27",
+      "location": {
+        "primary_station": "Santacruz Observatory, Mumbai",
+        "coordinates": {
+          "lat": 19.11,
+          "lon": 72.85
+        },
+        "elevation_m": 15.0,
+        "region": "Mumbai Suburban & Metropolitan Region"
+      },
+      "data_sources": [
+        {
+          "source_id": "IMD_MAUSAM_2009",
+          "organization": "India Meteorological Department (IMD)",
+          "publication": "MAUSAM (Quarterly Journal of Meteorology, Hydrology & Geophysics), Diamond Jubilee Volume, 2009, Vol. 60, pp. 33-58",
+          "paper_title": "Simulation of extreme weather events over Indian region with the advancement of NWP systems (U. C. Mohanty, S. Pattanayak, A. J. Litta, Krishna K. Osuri, A. Routray)",
+          "table_reference": "Table 7, Page 52: 'Mumbai heavy rainfall event during 26-27 July 2005 (03 hrly accumulated rainfall in cm)'",
+          "url": "https://mausamjournal.imd.gov.in/Vol60spl.pdf"
+        },
+        {
+          "source_id": "MHA_ANNUAL_REPORT_2005_06",
+          "organization": "Ministry of Home Affairs, Government of India",
+          "publication": "MHA Annual Report 2005–2006, Chapter VII (Disaster Management), Section 7.44, Page 106",
+          "excerpt": "The city of Mumbai recorded its highest ever rainfall of 944 mm in 24 hours on July 26, 2005.",
+          "url": "https://www.mha.gov.in/sites/default/files/ar0506-Eng_2.pdf"
+        },
+        {
+          "source_id": "NIDM_REPORT_2003_12",
+          "organization": "National Institute of Disaster Management (NIDM)",
+          "publication": "Annual Report 2003–04 to 2011–12, Major Activities (pp. 25-26)",
+          "context": "Documented disaster response, regional spatial data infrastructure initiatives, and flood mitigation lessons from Mumbai 2005.",
+          "url": "https://nidm.gov.in/PDF/pubs/areport_03.pdf"
+        },
+        {
+          "source_id": "PIB_IFLOWS_2020",
+          "organization": "Press Information Bureau (PIB), Government of India / Ministry of Earth Sciences",
+          "publication": "Official Release PRID=1630928: 'FLOOD WARNING SYSTEM FOR MUMBAI IFLOWS-Mumbai launched on June 12, 2020'",
+          "context": "Independently identifies 26 July 2005 (944 mm) as the defining historical benchmark of urban deluge.",
+          "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1630928&lang=2&reg=48"
+        }
+      ],
+      "data_classification": {
+        "observed_data": {
+          "station": "Santacruz",
+          "duration_hours": 24.0,
+          "total_rainfall_mm": 944.2,
+          "total_rainfall_cm": 94.42,
+          "measurement_type": "Three-hourly gauge observations",
+          "time_series_3hourly": [
+            {
+              "timestamp_utc": "2005-07-26T03:00:00Z",
+              "accumulated_cm": 0.09,
+              "accumulated_mm": 0.9,
+              "interval_mm": 0.9,
+              "interval_rate_mm_hr": 0.3,
+              "data_type": "OBSERVED"
+            },
+            {
+              "timestamp_utc": "2005-07-26T06:00:00Z",
+              "accumulated_cm": 0.09,
+              "accumulated_mm": 0.9,
+              "interval_mm": 0.0,
+              "interval_rate_mm_hr": 0.0,
+              "data_type": "OBSERVED"
+            },
+            {
+              "timestamp_utc": "2005-07-26T09:00:00Z",
+              "accumulated_cm": 1.84,
+              "accumulated_mm": 18.4,
+              "interval_mm": 17.5,
+              "interval_rate_mm_hr": 5.83,
+              "data_type": "OBSERVED"
+            },
+            {
+              "timestamp_utc": "2005-07-26T12:00:00Z",
+              "accumulated_cm": 45.01,
+              "accumulated_mm": 450.1,
+              "interval_mm": 431.7,
+              "interval_rate_mm_hr": 143.9,
+              "data_type": "OBSERVED",
+              "notes": "Peak burst period (143.9 mm/hr sustained over 3 hours)"
+            },
+            {
+              "timestamp_utc": "2005-07-26T15:00:00Z",
+              "accumulated_cm": 66.77,
+              "accumulated_mm": 667.7,
+              "interval_mm": 217.6,
+              "interval_rate_mm_hr": 72.53,
+              "data_type": "OBSERVED",
+              "notes": "High intensity post-cloudburst continuation"
+            },
+            {
+              "timestamp_utc": "2005-07-26T18:00:00Z",
+              "accumulated_cm": 76.89,
+              "accumulated_mm": 768.9,
+              "interval_mm": 101.2,
+              "interval_rate_mm_hr": 33.73,
+              "data_type": "OBSERVED"
+            },
+            {
+              "timestamp_utc": "2005-07-26T21:00:00Z",
+              "accumulated_cm": 88.5,
+              "accumulated_mm": 885.0,
+              "interval_mm": 116.1,
+              "interval_rate_mm_hr": 38.7,
+              "data_type": "OBSERVED"
+            },
+            {
+              "timestamp_utc": "2005-07-27T00:00:00Z",
+              "accumulated_cm": 89.6,
+              "accumulated_mm": 896.0,
+              "interval_mm": 11.0,
+              "interval_rate_mm_hr": 3.67,
+              "data_type": "OBSERVED"
+            },
+            {
+              "timestamp_utc": "2005-07-27T03:00:00Z",
+              "accumulated_cm": 94.42,
+              "accumulated_mm": 944.2,
+              "interval_mm": 48.2,
+              "interval_rate_mm_hr": 16.07,
+              "data_type": "OBSERVED",
+              "notes": "24-hour total closure at 0300 UTC 27 July 2005"
+            }
+          ],
+          "surrounding_stations": [
+            {
+              "station": "Colaba Observatory",
+              "lat": 18.93,
+              "lon": 72.81,
+              "rainfall_24h_mm": 74.0,
+              "data_type": "OBSERVED",
+              "notes": "Illustrates hyper-localized mesoscale gradient (~30 km south of Santacruz)"
+            },
+            {
+              "station": "Lake Vihar",
+              "lat": 19.2,
+              "lon": 72.53,
+              "rainfall_24h_mm": 1049.0,
+              "data_type": "OBSERVED (Unofficial recorded maximum)"
+            }
+          ]
+        },
+        "modelled_data": {
+          "source": "MAUSAM Vol 60 NWP Simulation (Mohanty et al., 2009)",
+          "models": [
+            {
+              "model_name": "CNTL (Control Simulation)",
+              "total_24h_cm": 35.6,
+              "total_24h_mm": 356.0,
+              "data_type": "MODELLED"
+            },
+            {
+              "model_name": "3DVAR (3D Variational Assimilation)",
+              "total_24h_cm": 78.1,
+              "total_24h_mm": 781.0,
+              "data_type": "MODELLED"
+            }
+          ]
+        },
+        "forecast_data": {
+          "available": false,
+          "notes": "No operational numerical nowcasting forecast was active during the 2005 event."
+        }
+      },
+      "scenario_inputs": {
+        "peak_burst_mm_hr": 143.9,
+        "sustained_deluge_mm_hr": 72.53,
+        "daily_average_mm_hr": 39.34,
+        "units": "mm/hour",
+        "recommended_blockage_pct": 50.0
+      },
+      "validation": {
+        "historical_flood_depth_ground_truth": "NOT AVAILABLE",
+        "validation_status": "Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.",
+        "accuracy_percentage": null,
+        "notes": "Official publications document rainfall observations and qualitative impacts, but do not provide surveyed inundation-depth rasters or gauge water-depth ground truth for route-level validation."
+      }
+    },
+    {
+      "scenario_id": "2017_flood",
+      "event_name": "Mumbai & Thane Extreme Deluge (28–29 August 2017)",
+      "event_date": "2017-08-28 to 2017-08-30",
+      "location": {
+        "primary_station": "IMD AWS Thane & Mumbai Metropolitan Area",
+        "coordinates": {
+          "lat": 19.2183,
+          "lon": 72.9781
+        },
+        "elevation_m": 12.0,
+        "region": "Mumbai City, Suburbs & Thane"
+      },
+      "data_sources": [
+        {
+          "source_id": "MOSDAC_ISRO_2017",
+          "organization": "MOSDAC / Space Applications Centre (SAC) / ISRO",
+          "publication": "Mumbai Heavy Rainfall and deluge (28 - 29 August 2017)",
+          "document_reference": "mosdac.gov.in/docs/Mumbai_deluge.pdf?language=en",
+          "url": "https://mosdac.gov.in/docs/Mumbai_deluge.pdf?language=en"
+        },
+        {
+          "source_id": "IMD_MUMBAI_EXTREMES",
+          "organization": "India Meteorological Department (IMD)",
+          "publication": "Extreme Weather Events in the Month of August - Mumbai",
+          "table_reference": "Year 2017: 24-Hours Highest Rainfall: 331.4 mm (Date: 30-08-2017 morning for 29 Aug deluge); Monthly Total: 950.3 mm",
+          "url": "https://city.imd.gov.in/citywx/extreme/AUG/mumbai2.htm"
+        },
+        {
+          "source_id": "PIB_IFLOWS_2020",
+          "organization": "Press Information Bureau (PIB), Government of India / Ministry of Earth Sciences",
+          "publication": "Official Release PRID=1630928: 'FLOOD WARNING SYSTEM FOR MUMBAI IFLOWS-Mumbai launched on June 12, 2020'",
+          "context": "Identifies the 29 August 2017 flood as the catalyst event for high-resolution nowcasting system development.",
+          "url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1630928&lang=2&reg=48"
+        }
+      ],
+      "data_classification": {
+        "observed_data": {
+          "station": "IMD Mumbai & IMD AWS Thane",
+          "august_24h_max_mm": 331.4,
+          "august_monthly_total_mm": 950.3,
+          "aws_burst_episodes": [
+            {
+              "station": "IMD AWS over Thane",
+              "date": "2017-08-29",
+              "observed_burst_range_mm_hr": "50 to 100 mm in an hour",
+              "min_observed_burst_mm_hr": 50.0,
+              "max_observed_burst_mm_hr": 100.0,
+              "data_type": "OBSERVED",
+              "key_alert_timestamps_utc": ["0715 UTC", "0915 UTC", "1045 UTC", "1300 UTC"]
+            }
+          ]
+        },
+        "forecast_data": {
+          "source": "SAC-ISRO Nowcast Model & IMD AWS Nowcasting",
+          "lead_time_hours": 2.0,
+          "radius_of_influence_km": 50.0,
+          "predicted_burst_rate_mm_hr": "50 - 100 mm in an hour for Thane",
+          "alert_issued_utc": "2017-08-29T10:45:00Z",
+          "first_major_alert_utc": "2017-08-28T07:15:00Z",
+          "data_type": "FORECAST / NOWCAST"
+        },
+        "modelled_data": {
+          "model": "WRF V3.9",
+          "spatial_resolution_km": 5.0,
+          "simulation_init_utc": "2017-08-28T00:00:00Z",
+          "forecast_horizon_hours": 48.0,
+          "data_type": "MODELLED"
+        }
+      },
+      "scenario_inputs": {
+        "peak_burst_mm_hr": 100.0,
+        "moderate_burst_mm_hr": 65.0,
+        "daily_average_mm_hr": 13.81,
+        "units": "mm/hour",
+        "recommended_blockage_pct": 40.0
+      },
+      "validation": {
+        "historical_flood_depth_ground_truth": "NOT AVAILABLE",
+        "validation_status": "Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.",
+        "accuracy_percentage": null,
+        "notes": "Official reports from MOSDAC/ISRO and IMD provide satellite nowcasts, AWS rainfall burst metrics, and 24h totals, but no municipal street-level flood depth ground-truth dataset exists."
+      }
+    }
+  ]
+}
