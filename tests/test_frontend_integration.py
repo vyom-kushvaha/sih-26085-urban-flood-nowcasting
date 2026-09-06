@@ -349,6 +349,29 @@ def test_map_drag_preserves_route_state():
     print("  [PASS] Test 19: Map Drag Handler State Isolation & Follow-Me Toggle Verified")
 
 
+def test_safe_route_hybrid_breakdown():
+    """Test 20: Verify /api/v1/routing/safe-route exposes physics/ML hybrid breakdown and fallback metadata."""
+    res = client.get("/api/v1/routing/safe-route?origin=Hindmata&destination=Kurla")
+    assert res.status_code == 200
+    data = res.json()
+
+    assert "query" in data
+    assert data["query"]["calibration_mode"] == "physics_fallback"
+    assert data["query"]["physics_weight"] == 0.7
+    assert data["query"]["ml_weight"] == 0.3
+
+    assert "routes" in data
+    assert len(data["routes"]) > 0
+    for r in data["routes"]:
+        assert "physics_score" in r
+        assert "hybrid_score" in r
+        assert "calibration_mode" in r
+        assert r["calibration_mode"] == "physics_fallback"
+        assert r["ml_score"] is None
+        assert r["hybrid_score"] == r["physics_score"]
+    print("  [PASS] Test 20: Safe Route Endpoint Exposes Hybrid Metadata & Fallback Alignment")
+
+
 if __name__ == "__main__":
     print("=== RUNNING FRONTEND INTEGRATION & FASTAPI TESTCLIENT TESTS ===")
     test_root_serves_frontend_index_html()
@@ -370,6 +393,8 @@ if __name__ == "__main__":
     test_current_route_control_in_frontend_html()
     test_focus_current_route_logic_and_safeguards()
     test_map_drag_preserves_route_state()
-    print("\n[SUCCESS] ALL 19 INTEGRATION, LIVE GPS, BOUNDARY & MAP CONTROL TESTS PASSED SUCCESSFULLY!")
+    test_safe_route_hybrid_breakdown()
+    print("\n[SUCCESS] ALL 20 INTEGRATION, LIVE GPS, BOUNDARY, MAP CONTROL & HYBRID TESTS PASSED SUCCESSFULLY!")
+
 
 
