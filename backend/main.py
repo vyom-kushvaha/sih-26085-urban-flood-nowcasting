@@ -8,19 +8,27 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Vyom's main API routers
 from backend.routers.risk import router as risk_router
 from backend.routers.weather import router as weather_router
 
+# Dev's demo router
 try:
-    from backend.routes.weather import router as d_weather_router
+    from backend.routes.demo import router as demo_router
 except ImportError:
-    from routes.weather import router as d_weather_router
+    from routes.demo import router as demo_router
+
 
 app = FastAPI(
     title="Urban Flood Nowcasting System API",
     description="Real-time 2D hydrological risk modeling & nowcasting API (SIH26085)",
     version="1.0.0"
 )
+
 
 # Enable CORS for React Web Dashboard & Citizen Web Portal
 app.add_middleware(
@@ -31,19 +39,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers (Vyom + Devs combined)
+
+# Include API routers
 app.include_router(risk_router)
 app.include_router(weather_router)
-app.include_router(d_weather_router)
+app.include_router(demo_router)
+
 
 # Mount Static Files from frontend
-frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
-if os.path.exists(frontend_dir):
-    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+frontend_dir = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "frontend"
+)
 
-data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "processed")
+if os.path.exists(frontend_dir):
+    app.mount(
+        "/static",
+        StaticFiles(directory=frontend_dir),
+        name="static"
+    )
+
+
+# Mount processed data assets
+data_dir = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "data",
+    "processed"
+)
+
 if os.path.exists(data_dir):
-    app.mount("/data-assets", StaticFiles(directory=data_dir), name="data-assets")
+    app.mount(
+        "/data-assets",
+        StaticFiles(directory=data_dir),
+        name="data-assets"
+    )
 
 
 @app.get("/api/v1/health")
@@ -60,13 +91,18 @@ async def health_check():
 @app.get("/")
 async def root():
     index_path = os.path.join(frontend_dir, "index.html")
+
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return await health_check()
 
+    return await health_check()
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
