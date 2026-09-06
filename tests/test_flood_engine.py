@@ -16,6 +16,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from dem_processor import get_dem_processor
 from drainage_processor import get_drainage_processor
 from risk_engine import get_risk_engine
+from ml_model import get_ml_model, FloodMLModel
+from hybrid_model import calculate_hybrid_risk
 from backend.main import app
 
 client = TestClient(app)
@@ -97,10 +99,115 @@ def test_valid_http_endpoints_fastapi_testclient():
     print("  [PASS] FastAPI TestClient HTTP 200 OK Endpoints")
 
 
+def test_physics_only_fallback():
+    """TEST 1: Physics-only fallback when ML model is unavailable/untrained."""
+    engine = get_risk_engine()
+    ml_model = get_ml_model()
+    ml_model.model = None
+    ml_model.is_trained = False
+
+    res = engine.calculate_risk(lat=19.0760, lon=72.8777, rainfall_mm_hr=40.0)
+    assert res["ml_score"] is None
+    assert res["calibration_mode"] == "physics_fallback"
+    assert res["hybrid_score"] == res["physics_score"]
+    assert res["risk_score"] == res["physics_score"]
+    assert res["physics_weight"] == 0.7
+    assert res["ml_weight"] == 0.3
+    print("  [PASS] Test 1: Physics-Only Graceful Fallback Verified")
+
+
+def test_hybrid_calculation_with_controlled_ml_stub():
+    """TEST 2: Hybrid calculation with deterministic test ML prediction stub (70% physics / 30% ML)."""
+    class DeterministicMockModel:
+        def predict(self, features):
+            return [60.0]
+
+    engine = get_risk_engine()
+    ml_model = get_ml_model()
+    try:
+        ml_model.model = DeterministicMockModel()
+        ml_model.is_trained = True
+
+        res = engine.calculate_risk(lat=19.0760, lon=72.8777, rainfall_mm_hr=25.0)
+        assert res["ml_score"] == 60.0
+        assert res["calibration_mode"] == "ml_calibrated"
+        expected_hybrid = round(res["physics_score"] * 0.7 + 60.0 * 0.3, 1)
+        assert abs(res["hybrid_score"] - expected_hybrid) < 0.1
+    finally:
+        ml_model.model = None
+        ml_model.is_trained = False
+    print("  [PASS] Test 2: Hybrid Risk 70/30 Weighting with Deterministic Stub Verified")
+
+
+def test_ml_feature_vector_structure():
+    """TEST 3: Feature vector structure strictly contains: rainfall, water depth, slope, drainage capacity, blockage."""
+    ml_model = get_ml_model()
+    features = ml_model.prepare_features(
+        rainfall_mm_hr=50.0,
+        water_depth_cm=12.5,
+        slope_percent=1.8,
+        drainage_capacity_mm_hr=35.0,
+        blockage_pct=20.0
+    )
+    assert features.shape == (1, 5)
+    assert features[0][0] == 50.0   # rainfall_mm_hr
+    assert features[0][1] == 12.5   # water_depth_cm
+    assert features[0][2] == 1.8    # slope_percent
+    assert features[0][3] == 35.0   # drainage_capacity_mm_hr
+    assert features[0][4] == 20.0   # blockage_pct
+    print("  [PASS] Test 3: ML Feature Vector Extraction Structure Verified")
+
+
+def test_risk_explain_endpoint_hybrid_breakdown():
+    """TEST 4: Risk explain endpoint exposes physics_score, ml_score, hybrid_score, and calibration_mode."""
+    resp = client.get("/api/v1/risk/explain?lat=19.0760&lon=72.8777&rainfall_mm_hr=40.0")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert "physics_score" in data
+    assert "ml_score" in data
+    assert data["ml_score"] is None
+    assert "hybrid_score" in data
+    assert data["hybrid_score"] == data["physics_score"]
+    assert data["calibration_mode"] == "physics_fallback"
+    assert data["physics_weight"] == 0.7
+    assert data["ml_weight"] == 0.3
+    print("  [PASS] Test 4: Risk Explain Endpoint Exposes Hybrid Explainability Breakdown")
+
+
+def test_route_safety_critical_depth_not_green_with_ml():
+    """TEST 6: Critical physical water-depth conditions cannot become GREEN merely because of ML."""
+    class ZeroRiskStub:
+        def predict(self, features):
+            return [0.0]
+
+    engine = get_risk_engine()
+    ml_model = get_ml_model()
+    try:
+        ml_model.model = ZeroRiskStub()
+        ml_model.is_trained = True
+
+        res = engine.calculate_risk(lat=19.0182, lon=72.8455, rainfall_mm_hr=85.0, blockage_pct=60.0, duration_hours=4.0)
+        assert res["water_depth_cm"] > 15.0
+        assert res["risk_score"] >= 85.0
+        assert res["risk_level"] == "CRITICAL"
+        assert res["color_code"] == "#ef4444"
+    finally:
+        ml_model.model = None
+        ml_model.is_trained = False
+    print("  [PASS] Test 6: Safety Constraint Enforced — Critical Flooding Cannot Become Green")
+
+
 if __name__ == "__main__":
     print("=== RUNNING FLOOD ENGINE UNIT & FASTAPI TESTCLIENT VALIDATION TESTS ===")
     test_dem_processor()
     test_drainage_processor()
     test_invalid_coordinates_fastapi_testclient_422()
     test_valid_http_endpoints_fastapi_testclient()
-    print("\n[SUCCESS] ALL FLOOD ENGINE & API VALIDATION TESTS PASSED SUCCESSFULLY!")
+    test_physics_only_fallback()
+    test_hybrid_calculation_with_controlled_ml_stub()
+    test_ml_feature_vector_structure()
+    test_risk_explain_endpoint_hybrid_breakdown()
+    test_route_safety_critical_depth_not_green_with_ml()
+    print("\n[SUCCESS] ALL FLOOD ENGINE & HYBRID MODEL VALIDATION TESTS PASSED SUCCESSFULLY!")
+

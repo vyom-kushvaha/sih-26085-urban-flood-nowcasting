@@ -847,6 +847,11 @@ def calculate_flood_routes(
         # Penalty score balances risk, depth, and travel time
         penalty = (route_score * 1.5) + (max_d * 2.0) + (cand["estimated_duration_min"] * 0.6)
 
+        # Calculate average ML score if available across route waypoints
+        valid_ml_pts = [p["ml_score"] for p in pt_details if p.get("ml_score") is not None]
+        avg_ml_score = round(sum(valid_ml_pts) / len(valid_ml_pts), 1) if valid_ml_pts else None
+        route_calibration_mode = "ml_calibrated" if valid_ml_pts else "physics_fallback"
+
         evaluated_routes.append({
             "id": cand["id"],
             "name": cand["name"],
@@ -854,6 +859,12 @@ def calculate_flood_routes(
             "distance_km": cand["distance_km"],
             "estimated_duration_min": cand["estimated_duration_min"],
             "risk_score": route_score,
+            "physics_score": route_score,
+            "ml_score": avg_ml_score,
+            "hybrid_score": route_score,
+            "calibration_mode": route_calibration_mode,
+            "physics_weight": 0.7,
+            "ml_weight": 0.3,
             "max_water_depth_cm": max_d,
             "avg_water_depth_cm": avg_d,
             "color": color,
@@ -908,7 +919,10 @@ def calculate_flood_routes(
             "weather_source": weather_source,
             "weather_condition": weather_condition,
             "temp_c": weather_temp,
-            "timestamp": weather_timestamp
+            "timestamp": weather_timestamp,
+            "calibration_mode": "ml_calibrated" if any(r.get("calibration_mode") == "ml_calibrated" for r in evaluated_routes) else "physics_fallback",
+            "physics_weight": 0.7,
+            "ml_weight": 0.3
         },
         "is_arrived": is_arrived,
         "dist_to_dest_m": dist_to_dest_m,

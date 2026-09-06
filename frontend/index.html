@@ -2825,7 +2825,10 @@ function renderRouteResult(){
         </span>
       </div>
       <div style="font-size:0.75rem;color:#4B5563;">
-        Engine: <strong>CartoDEM 30m + OSM Drainage + Rational Runoff Hydrodynamics</strong>
+        Engine: <strong>CartoDEM 30m + OSM Drainage + Physics/ML Hybrid</strong>
+        <span style="background:#F1F5F9;color:#334155;border:1px solid #CBD5E1;font-weight:700;font-size:0.68rem;padding:2px 7px;border-radius:8px;margin-left:4px;">
+          ${q.calibration_mode === 'ml_calibrated' ? '70% Physics + 30% ML' : 'Physics Fallback (100%)'}
+        </span>
       </div>
     </div>
 
@@ -2887,6 +2890,10 @@ function renderRouteResult(){
               <div class="route-line" style="padding:4px 0;border-bottom:1px solid #F1F5F9;">
                 <span style="color:#475569;font-size:0.85rem;">Hydrological Risk:</span>
                 <span style="font-weight:800;color:${cColor};font-size:0.9rem;">${cand.risk_score} / 100 (${cand.risk_level})</span>
+              </div>
+              <div class="route-line" style="padding:4px 0;border-bottom:1px solid #F1F5F9;">
+                <span style="color:#475569;font-size:0.85rem;">Calibration Model:</span>
+                <span style="font-weight:700;color:#0F172A;font-size:0.78rem;">${cand.calibration_mode === 'ml_calibrated' ? '70% Physics + 30% ML' : 'Physics Fallback (Untrained ML)'}</span>
               </div>
 
               <div style="margin-top:var(--space-3);font-size:0.8rem;background:#F8FAFC;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid #E2E8F0;color:#334155;line-height:1.4;">
