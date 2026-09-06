@@ -8,7 +8,7 @@ import sys
 import os
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 # Add flood-engine directory to python path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "flood-engine"))
@@ -411,8 +411,15 @@ def resolve_location(
     )
 
 
+_OSRM_CACHE: Dict[Tuple[float, float, float, float], List[List[float]]] = {}
+
+
 def fetch_osrm_road_coordinates(o_lat: float, o_lon: float, d_lat: float, d_lon: float) -> Optional[List[List[float]]]:
-    """Query OSRM driving service for real-world road coordinates between coordinates."""
+    """Query OSRM driving service for real-world road coordinates between coordinates, with memory caching."""
+    cache_key = (round(o_lat, 4), round(o_lon, 4), round(d_lat, 4), round(d_lon, 4))
+    if cache_key in _OSRM_CACHE:
+        return [list(pt) for pt in _OSRM_CACHE[cache_key]]
+
     try:
         url = f"https://router.project-osrm.org/route/v1/driving/{o_lon},{o_lat};{d_lon},{d_lat}?overview=full&geometries=geojson"
         req = urllib.request.Request(url, headers={"User-Agent": "UrbanFloodNowcasting/1.0"})
@@ -429,10 +436,13 @@ def fetch_osrm_road_coordinates(o_lat: float, o_lon: float, d_lat: float, d_lon:
                 # Ensure exact origin and destination bounds
                 coords[0] = [o_lat, o_lon]
                 coords[-1] = [d_lat, d_lon]
+                if len(_OSRM_CACHE) < 2048:
+                    _OSRM_CACHE[cache_key] = [list(pt) for pt in coords]
                 return coords
     except Exception:
         pass
     return None
+
 
 
 def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

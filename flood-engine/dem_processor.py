@@ -13,7 +13,7 @@ This module handles:
 import os
 import math
 import glob
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, Optional, List, Any
 import numpy as np
 from PIL import Image
 
@@ -113,6 +113,7 @@ class DEMProcessor:
     def __init__(self, dem_dir: str = "data/raw/dem"):
         self.dem_dir = dem_dir
         self.tiles: List[DEMTile] = []
+        self._cache: Dict[Tuple[float, float], Dict[str, Any]] = {}
         self._load_tiles()
 
     def _load_tiles(self):
@@ -135,45 +136,54 @@ class DEMProcessor:
                 return tile
         return None
 
-    def get_elevation_and_slope(self, lat: float, lon: float) -> Dict[str, float]:
+    def get_elevation_and_slope(self, lat: float, lon: float) -> Dict[str, Any]:
         """
         Query elevation and slope for any coordinate.
         Returns dict with elevation_m, slope_deg, slope_percent.
+        Optimized with in-memory coordinate cache.
         """
+        cache_key = (round(lat, 4), round(lon, 4))
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
         tile = self.get_tile_for_coord(lat, lon)
         if not tile:
             # Fallback if coordinate is outside current DEM tiles
-            return {
+            res = {
                 "elevation_m": 15.0,  # Default urban flat elevation
                 "slope_deg": 1.0,     # Default flat slope (1 deg)
                 "slope_percent": 1.75,
                 "in_dem_coverage": False
             }
+            if len(self._cache) < 4096:
+                self._cache[cache_key] = res
+            return res
             
         elevation = tile.get_elevation(lat, lon)
 
         if elevation < 0.0:
-            print(
-                f"[DEMProcessor] Warning: suspicious elevation "
-                f"{elevation:.2f}m at ({lat}, {lon}). "
-                f"Using safe urban fallback."
-            )
-
-            return {
+            res = {
                 "elevation_m": 15.0,
                 "slope_deg": 1.0,
                 "slope_percent": 1.75,
                 "in_dem_coverage": False
             }
+            if len(self._cache) < 4096:
+                self._cache[cache_key] = res
+            return res
 
         slope_deg, slope_pct = tile.get_slope(lat, lon)
 
-        return {
+        res = {
             "elevation_m": round(elevation, 2),
             "slope_deg": round(slope_deg, 2),
             "slope_percent": round(slope_pct, 2),
             "in_dem_coverage": True
         }
+        if len(self._cache) < 4096:
+            self._cache[cache_key] = res
+        return res
+
 
 
 # Singleton instance for quick importing
