@@ -14,6 +14,7 @@ This module:
 import os
 import json
 import math
+import collections
 from typing import Dict, Any, List, Tuple, Optional
 
 DEFAULT_GEOJSON_PATH = os.path.join("data", "processed", "mumbai_drainage.geojson")
@@ -57,25 +58,53 @@ class DrainageProcessor:
         self.geojson_path = geojson_path
         self.default_base_capacity = base_capacity_mm_hr
         self.drain_features: List[Dict[str, Any]] = []
+        self._segments: List[Tuple[float, float, float, float, Dict[str, Any]]] = []
+        self._grid: Dict[Tuple[int, int], List[Tuple[float, float, float, float, Dict[str, Any]]]] = collections.defaultdict(list)
+        self._cache: Dict[Tuple[float, float], Dict[str, Any]] = {}
         self._load_mumbai_drainage()
 
     def _load_mumbai_drainage(self):
-        """Load Mumbai drainage GeoJSON if file exists."""
+        """Load Mumbai drainage GeoJSON if file exists and build spatial grid index."""
         if os.path.exists(self.geojson_path):
             try:
                 with open(self.geojson_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     self.drain_features = data.get("features", [])
                     print(f"[DrainageProcessor] Loaded {len(self.drain_features)} Mumbai drainage lines from {self.geojson_path}")
+                
+                # Build pre-flattened segment list and 2km spatial grid for fast proximity indexing
+                self._segments = []
+                self._grid.clear()
+                self._cache.clear()
+                for feature in self.drain_features:
+                    geom = feature.get("geometry", {})
+                    coords = geom.get("coordinates", [])
+                    if geom.get("type") == "LineString" and len(coords) >= 2:
+                        for i in range(len(coords) - 1):
+                            lon1, lat1 = coords[i]
+                            lon2, lat2 = coords[i + 1]
+                            seg = (lat1, lon1, lat2, lon2, feature)
+                            self._segments.append(seg)
+                            # 0.02 deg ~ 2.2km grid cell
+                            g_lat1 = int(math.floor(lat1 / 0.02))
+                            g_lat2 = int(math.floor(lat2 / 0.02))
+                            g_lon1 = int(math.floor(lon1 / 0.02))
+                            g_lon2 = int(math.floor(lon2 / 0.02))
+                            for glat in range(min(g_lat1, g_lat2), max(g_lat1, g_lat2) + 1):
+                                for glon in range(min(g_lon1, g_lon2), max(g_lon1, g_lon2) + 1):
+                                    self._grid[(glat, glon)].append(seg)
             except Exception as e:
                 print(f"[DrainageProcessor] Error loading GeoJSON {self.geojson_path}: {e}")
                 self.drain_features = []
+                self._segments = []
+                self._grid.clear()
         else:
             print(f"[DrainageProcessor] GeoJSON not found at {self.geojson_path}. Running without spatial GeoJSON index.")
 
     def find_nearest_drain(self, lat: float, lon: float) -> Dict[str, Any]:
         """
         Find nearest Mumbai drainage feature and distance in meters.
+        Optimized with spatial grid indexing and fast spatial coordinate caching.
         """
         if not self.drain_features:
             return {
@@ -85,39 +114,60 @@ class DrainageProcessor:
                 "has_spatial_match": False
             }
 
+        cache_key = (round(lat, 4), round(lon, 4))
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        glat = int(math.floor(lat / 0.02))
+        glon = int(math.floor(lon / 0.02))
+
+        # Check candidate segments in 3x3 grid neighborhood
+        candidates = []
+        for dlat in (-1, 0, 1):
+            for dlon in (-1, 0, 1):
+                cell = (glat + dlat, glon + dlon)
+                if cell in self._grid:
+                    candidates.extend(self._grid[cell])
+
         min_dist = float("inf")
         nearest_feature = None
 
-        for feature in self.drain_features:
-            geom = feature.get("geometry", {})
-            coords = geom.get("coordinates", [])
-            
-            if geom.get("type") == "LineString" and len(coords) >= 2:
-                for i in range(len(coords) - 1):
-                    lon1, lat1 = coords[i]
-                    lon2, lat2 = coords[i + 1]
-                    dist = point_to_segment_distance_m(lat, lon, lat1, lon1, lat2, lon2)
-                    
-                    if dist < min_dist:
-                        min_dist = dist
-                        nearest_feature = feature
+        if candidates:
+            for lat1, lon1, lat2, lon2, feat in candidates:
+                dist = point_to_segment_distance_m(lat, lon, lat1, lon1, lat2, lon2)
+                if dist < min_dist:
+                    min_dist = dist
+                    nearest_feature = feat
+
+        # Fallback to full segment scan if no candidate or closest is beyond cell boundary (> 1500m)
+        if min_dist > 1500.0 or nearest_feature is None:
+            for lat1, lon1, lat2, lon2, feat in self._segments:
+                dist = point_to_segment_distance_m(lat, lon, lat1, lon1, lat2, lon2)
+                if dist < min_dist:
+                    min_dist = dist
+                    nearest_feature = feat
 
         if nearest_feature and min_dist < 10000.0:  # Within 10 km
             props = nearest_feature.get("properties", {})
-            return {
+            res = {
                 "nearest_drain_name": props.get("name", "Unnamed Drain"),
                 "waterway_type": props.get("waterway", "drain"),
                 "distance_meters": round(min_dist, 1),
                 "osm_id": props.get("osm_id", None),
                 "has_spatial_match": True
             }
+        else:
+            res = {
+                "nearest_drain_name": "Far from Major Channel",
+                "waterway_type": "overland_street",
+                "distance_meters": round(min_dist, 1) if min_dist != float("inf") else 2000.0,
+                "has_spatial_match": False
+            }
 
-        return {
-            "nearest_drain_name": "Far from Major Channel",
-            "waterway_type": "overland_street",
-            "distance_meters": round(min_dist, 1) if min_dist != float("inf") else 2000.0,
-            "has_spatial_match": False
-        }
+        if len(self._cache) < 4096:
+            self._cache[cache_key] = res
+        return res
+
 
     def calculate_effective_capacity(
         self, 
