@@ -17,6 +17,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from risk_engine import get_risk_engine
 from dem_processor import get_dem_processor
 from database import log_risk_calculation_db
+from backend.services.historical_scenarios import (
+    get_historical_scenarios,
+    get_historical_scenario,
+    get_scenario_replay_rainfall
+)
 
 router = APIRouter(prefix="/api/v1", tags=["Flood Risk & Hydrology"])
 
@@ -94,6 +99,60 @@ async def simulate_blockage_scenarios(request: ScenarioSimulationRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+
+
+class ScenarioReplayRequest(BaseModel):
+    origin: Optional[str] = "Hindmata, Dadar, Mumbai"
+    destination: Optional[str] = "Chhatrapati Shivaji Maharaj Park"
+    timestep: Optional[str] = Field("peak_burst", description="Timestep: 'peak_burst', 'daily_average', or 'sustained_deluge'")
+    force_refresh: Optional[bool] = False
+
+
+@router.get("/scenarios", response_model=Dict[str, Any])
+async def list_historical_scenarios():
+    """
+    List registered authoritative historical flood scenarios (Mumbai 2005 Deluge, August 2017 Flood)
+    with official provenance metadata, observed metrics, and validation disclaimer.
+    """
+    scenarios = get_historical_scenarios()
+    return {
+        "status": "success",
+        "count": len(scenarios),
+        "disclaimer": "All rainfall values sourced directly from official IMD, MHA, MOSDAC/ISRO, and PIB publications. Historical spatial flood-depth ground truth is NOT AVAILABLE.",
+        "scenarios": scenarios
+    }
+
+
+@router.get("/scenarios/{scenario_id}", response_model=Dict[str, Any])
+async def get_single_historical_scenario(scenario_id: str):
+    """
+    Retrieve full details, time-series observations, and model comparisons for a single historical scenario.
+    """
+    sc = get_historical_scenario(scenario_id)
+    if not sc:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found. Valid IDs: ['2005_deluge', '2017_flood']")
+    return sc
+
+
+@router.post("/scenarios/{scenario_id}/replay", response_model=Dict[str, Any])
+async def replay_historical_scenario(scenario_id: str, request: Optional[ScenarioReplayRequest] = None):
+    """
+    Replay an authoritative historical flood scenario through the existing physics + ML hybrid route engine.
+    Feeds authentic source-derived rainfall into the operational flood engine without creating a duplicate engine.
+    """
+    req = request or ScenarioReplayRequest()
+    try:
+        return calculate_flood_routes(
+            origin=req.origin or "Hindmata, Dadar, Mumbai",
+            dest=req.destination or "Chhatrapati Shivaji Maharaj Park",
+            scenario_id=scenario_id,
+            timestep=req.timestep or "peak_burst",
+            force_refresh=req.force_refresh or False
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scenario replay failed: {str(e)}")
 
 
 @router.get("/elevation", response_model=Dict[str, Any])
@@ -443,6 +502,8 @@ class RouteCalculationRequest(BaseModel):
     dest_lon: Optional[float] = None
     rainfall_mm_hr: Optional[float] = None
     force_refresh: Optional[bool] = False
+    scenario_id: Optional[str] = None
+    timestep: Optional[str] = None
 
 
 def calculate_flood_routes(
@@ -453,10 +514,13 @@ def calculate_flood_routes(
     d_lat: Optional[float] = None,
     d_lon: Optional[float] = None,
     rain: Optional[float] = None,
-    force_refresh: bool = False
+    force_refresh: bool = False,
+    scenario_id: Optional[str] = None,
+    timestep: Optional[str] = None
 ):
     """
-    Compute real-time flood-evaluated routes (GREEN, ORANGE, RED) coupled with LIVE weather and flood engine.
+    Compute real-time flood-evaluated routes (GREEN, ORANGE, RED) coupled with LIVE weather,
+    controlled simulation, or authoritative historical scenario replay (2005 Deluge / 2017 Flood).
     Enforces Mumbai boundary validation, coordinates precision, and segment-level flood safety.
     """
     # 1. Geographic Resolution and Boundary Validation
@@ -468,8 +532,18 @@ def calculate_flood_routes(
     actual_d_lat = resolved_dest["lat"]
     actual_d_lon = resolved_dest["lon"]
 
-    # 2. Obtain Rainfall from Live Weather Service or Controlled Scenario
-    if rain is None:
+    # 2. Obtain Rainfall from Historical Scenario, Live Weather Service, or Controlled Input
+    scenario_meta = None
+    if scenario_id:
+        replay = get_scenario_replay_rainfall(scenario_id, timestep=timestep)
+        actual_rain = float(replay["rainfall_mm_hr"])
+        is_live = False
+        weather_source = f"HISTORICAL_SCENARIO: {replay['scenario_id']} ({replay['event_name']}) - {replay['source_label']}"
+        weather_timestamp = "Historical Event"
+        weather_temp = 27.0
+        weather_condition = f"Historical Deluge Replay ({replay['timestep_label']})"
+        scenario_meta = replay
+    elif rain is None:
         try:
             weather_service = get_weather_service()
             weather = weather_service.get_current_weather(lat=actual_o_lat, lon=actual_o_lon, force_refresh=force_refresh)
@@ -922,7 +996,11 @@ def calculate_flood_routes(
             "timestamp": weather_timestamp,
             "calibration_mode": "ml_calibrated" if any(r.get("calibration_mode") == "ml_calibrated" for r in evaluated_routes) else "physics_fallback",
             "physics_weight": 0.7,
-            "ml_weight": 0.3
+            "ml_weight": 0.3,
+            "scenario": scenario_meta,
+            "historical_flood_depth_ground_truth": scenario_meta.get("historical_flood_depth_ground_truth", "NOT APPLICABLE (Live)") if scenario_meta else "NOT APPLICABLE (Live)",
+            "validation_status": scenario_meta.get("validation_status", "Operational real-time flood estimation.") if scenario_meta else "Operational real-time flood estimation.",
+            "accuracy_percentage": None
         },
         "is_arrived": is_arrived,
         "dist_to_dest_m": dist_to_dest_m,
@@ -978,10 +1056,13 @@ async def get_safe_route(
     dest_lat: Optional[float] = Query(None, ge=-90.0, le=90.0),
     dest_lon: Optional[float] = Query(None, ge=-180.0, le=180.0),
     rainfall_mm_hr: Optional[float] = Query(None, ge=0.0, le=300.0, description="Optional override. If omitted, uses LIVE weather."),
-    force_refresh: bool = Query(False, description="Force fresh live weather fetch")
+    force_refresh: bool = Query(False, description="Force fresh live weather fetch"),
+    scenario_id: Optional[str] = Query(None, description="Authoritative historical scenario ID: '2005_deluge' or '2017_flood'"),
+    timestep: Optional[str] = Query(None, description="Timestep: 'peak_burst', 'daily_average', 'sustained_deluge'")
 ):
     """
-    Compute live flood-evaluated routes (GREEN, ORANGE, RED) coupled with LIVE weather and flood engine.
+    Compute live flood-evaluated routes (GREEN, ORANGE, RED) coupled with LIVE weather,
+    controlled input, or authoritative historical scenario replay.
     """
     try:
         return calculate_flood_routes(
@@ -992,7 +1073,9 @@ async def get_safe_route(
             d_lat=dest_lat,
             d_lon=dest_lon,
             rain=rainfall_mm_hr,
-            force_refresh=force_refresh
+            force_refresh=force_refresh,
+            scenario_id=scenario_id,
+            timestep=timestep
         )
     except HTTPException:
         raise
@@ -1003,7 +1086,7 @@ async def get_safe_route(
 @router.post("/routing/safe-route", response_model=Dict[str, Any])
 async def post_safe_route(request: RouteCalculationRequest):
     """
-    Compute live flood-evaluated routes via POST body.
+    Compute live flood-evaluated routes via POST body with optional historical scenario replay.
     """
     try:
         return calculate_flood_routes(
@@ -1014,7 +1097,9 @@ async def post_safe_route(request: RouteCalculationRequest):
             d_lat=request.dest_lat,
             d_lon=request.dest_lon,
             rain=request.rainfall_mm_hr,
-            force_refresh=request.force_refresh or False
+            force_refresh=request.force_refresh or False,
+            scenario_id=request.scenario_id,
+            timestep=request.timestep
         )
     except HTTPException:
         raise
