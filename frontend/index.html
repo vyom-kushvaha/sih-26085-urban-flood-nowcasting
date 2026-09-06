@@ -686,6 +686,117 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+
+  /* Historical Flood Replay UI Component */
+  .hist-replay-panel {
+    background: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    margin-bottom: var(--space-4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+  .hist-replay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .hist-replay-title {
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hist-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .hist-btn-card {
+    background: #F8FAFC;
+    border: 2px solid #E2E8F0;
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    user-select: none;
+  }
+  .hist-btn-card:hover {
+    border-color: #94A3B8;
+    background: #F1F5F9;
+    transform: translateY(-1px);
+  }
+  .hist-btn-card.active {
+    background: #EFF6FF;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  }
+  .hist-btn-card.active.active-deluge {
+    background: #FEF2F2;
+    border-color: #DC2626;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+  }
+  .hist-btn-card.active.active-flood {
+    background: #FFFBEB;
+    border-color: #D97706;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+  }
+  .hist-btn-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .hist-btn-title {
+    font-size: 0.90rem;
+    font-weight: 800;
+    color: #0F172A;
+  }
+  .hist-btn-sub {
+    font-size: 0.74rem;
+    color: #64748B;
+    line-height: 1.35;
+  }
+  .hist-timestep-btn {
+    padding: 5px 12px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    border-radius: 4px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .hist-timestep-btn:hover {
+    background: #E2E8F0;
+  }
+  .hist-timestep-btn.active {
+    background: #004E72;
+    border-color: #004E72;
+    color: #FFFFFF;
+  }
+  .hist-disclaimer-alert {
+    margin-top: 10px;
+    background: #FFFBEB;
+    border: 1.5px solid #F59E0B;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    color: #78350F;
+    line-height: 1.45;
+  }
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
@@ -1032,7 +1143,10 @@ let homeState = {
   routeOriginLon: null,
   routeResult: null,
   routeError: null,
-  selectedRouteId: null
+  selectedRouteId: null,
+  activeReplayMode: "live", // "live", "2005_deluge", "2017_flood"
+  activeTimestep: "peak_burst", // "peak_burst", "daily_average", "sustained_deluge"
+  activeReplayRainfall: null
 };
 
 let navState = {
@@ -1238,7 +1352,12 @@ async function triggerDynamicReroute(lat, lon, reason = ""){
   homeState.routeOriginLon = lon;
 
   let rainQuery = '';
-  if(mode === 'monsoon_80') rainQuery = '&rainfall_mm_hr=80.0';
+  if(mode === 'hist_2005_peak') rainQuery = '&scenario_id=2005_deluge&timestep=peak_burst';
+  else if(mode === 'hist_2005_avg') rainQuery = '&scenario_id=2005_deluge&timestep=daily_average';
+  else if(mode === 'hist_2005_sustained') rainQuery = '&scenario_id=2005_deluge&timestep=sustained_deluge';
+  else if(mode === 'hist_2017_peak') rainQuery = '&scenario_id=2017_flood&timestep=peak_burst';
+  else if(mode === 'hist_2017_avg') rainQuery = '&scenario_id=2017_flood&timestep=daily_average';
+  else if(mode === 'monsoon_80') rainQuery = '&rainfall_mm_hr=80.0';
   else if(mode === 'moderate_35') rainQuery = '&rainfall_mm_hr=35.0';
   else if(mode === 'dry_0') rainQuery = '&rainfall_mm_hr=0.0';
   else rainQuery = '&force_refresh=true';
@@ -2385,6 +2504,203 @@ function drawRoutesOnMap(r){
   updateCurrentRouteButtonState();
 }
 
+function renderHistReplayDetailsHTML(){
+  const mode = homeState.activeReplayMode || 'live';
+  const ts = homeState.activeTimestep || 'peak_burst';
+
+  if(mode === '2005_deluge'){
+    let rainRate = "143.9 mm/hr";
+    let tsName = "Peak Burst (0900–1200 UTC)";
+    if(ts === 'daily_average'){
+      rainRate = "39.3 mm/hr";
+      tsName = "24-Hour Average (944.2 mm Total)";
+    } else if(ts === 'sustained_deluge'){
+      rainRate = "72.5 mm/hr";
+      tsName = "Sustained Deluge (1200–1500 UTC)";
+    }
+
+    return `
+      <div style="background:#FFF5F5;border:1.5px solid #FCA5A5;border-radius:var(--radius-sm);padding:12px 14px;margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-size:0.92rem;font-weight:800;color:#991B1B;">
+              🏛️ Mumbai 2005 Deluge — Historical Replay
+            </div>
+            <div style="font-size:0.78rem;color:#7F1D1D;margin-top:2px;">
+              Authoritative Source: <strong>IMD MAUSAM Vol. 60 Diamond Jubilee (Table 7) & MHA Annual Report 2005–06 Section 7.44</strong>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:#991B1B;font-weight:700;">Replayed Rainfall</div>
+            <div style="font-size:1.3rem;font-weight:900;color:#991B1B;line-height:1.2;">
+              ${rainRate}
+            </div>
+            <div style="font-size:0.72rem;color:#7F1D1D;font-weight:600;">${tsName}</div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.75rem;font-weight:700;color:#7F1D1D;">Timestep Controls:</span>
+          <button type="button" class="hist-timestep-btn ${ts==='peak_burst'?'active':''}" data-scenario="2005_deluge" data-timestep="peak_burst">
+            ⚡ Peak Burst (143.9 mm/hr · 0900–1200 UTC)
+          </button>
+          <button type="button" class="hist-timestep-btn ${ts==='daily_average'?'active':''}" data-scenario="2005_deluge" data-timestep="daily_average">
+            📊 24-Hr Average (39.3 mm/hr · 944.2 mm Total)
+          </button>
+          <button type="button" class="hist-timestep-btn ${ts==='sustained_deluge'?'active':''}" data-scenario="2005_deluge" data-timestep="sustained_deluge">
+            🌧️ Sustained Deluge (72.5 mm/hr · 1200–1500 UTC)
+          </button>
+        </div>
+
+        <div class="hist-disclaimer-alert" style="margin-top:10px;background:#FEF2F2;border-color:#F87171;color:#991B1B;">
+          <strong>⚠️ Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.</strong>
+          <div style="font-size:0.73rem;color:#7F1D1D;margin-top:2px;">
+            Official publications document rainfall observations and qualitative impacts, but do not provide surveyed inundation-depth rasters or gauge water-depth ground truth for route-level validation.
+          </div>
+        </div>
+      </div>
+    `;
+  } else if(mode === '2017_flood'){
+    let rainRate = "100.0 mm/hr";
+    let tsName = "Peak AWS Burst (Thane)";
+    if(ts === 'daily_average'){
+      rainRate = "13.8 mm/hr";
+      tsName = "24-Hour Average (331.4 mm Total)";
+    }
+
+    return `
+      <div style="background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:var(--radius-sm);padding:12px 14px;margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-size:0.92rem;font-weight:800;color:#92400E;">
+              🏛️ Mumbai 2017 Flood — Historical Replay
+            </div>
+            <div style="font-size:0.78rem;color:#78350F;margin-top:2px;">
+              Authoritative Source: <strong>MOSDAC / SAC / ISRO Report (28–29 August 2017) & IMD Mumbai August Extremes Table</strong>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400E;font-weight:700;">Replayed Rainfall</div>
+            <div style="font-size:1.3rem;font-weight:900;color:#92400E;line-height:1.2;">
+              ${rainRate}
+            </div>
+            <div style="font-size:0.72rem;color:#78350F;font-weight:600;">${tsName}</div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.75rem;font-weight:700;color:#78350F;">Timestep Controls:</span>
+          <button type="button" class="hist-timestep-btn ${ts==='peak_burst'?'active':''}" data-scenario="2017_flood" data-timestep="peak_burst">
+            ⚡ Peak AWS Burst (100.0 mm/hr · IMD AWS Thane)
+          </button>
+          <button type="button" class="hist-timestep-btn ${ts==='daily_average'?'active':''}" data-scenario="2017_flood" data-timestep="daily_average">
+            📊 24-Hr Average (13.8 mm/hr · 331.4 mm Total)
+          </button>
+        </div>
+
+        <div class="hist-disclaimer-alert" style="margin-top:10px;background:#FFFBEB;border-color:#F59E0B;color:#78350F;">
+          <strong>⚠️ Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.</strong>
+          <div style="font-size:0.73rem;color:#78350F;margin-top:2px;">
+            Official publications document rainfall observations and qualitative impacts, but do not provide surveyed inundation-depth rasters or gauge water-depth ground truth for route-level validation.
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    // Live mode
+    return `
+      <div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:var(--radius-sm);padding:10px 14px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:0.83rem;color:#166534;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:1.1rem;">📡</span>
+          <span><strong>Live OpenWeatherMap Active:</strong> Streaming live satellite and ground weather rainfall with automated hydrodynamic route hazard evaluation.</span>
+        </div>
+        <span style="background:#DCFCE7;color:#15803D;font-weight:800;font-size:0.72rem;padding:3px 8px;border-radius:10px;border:1px solid #86EFAC;">
+          ACTIVE FEED
+        </span>
+      </div>
+    `;
+  }
+}
+
+function wireHistTimestepEvents(){
+  document.querySelectorAll('.hist-timestep-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sc = btn.getAttribute('data-scenario');
+      const ts = btn.getAttribute('data-timestep');
+      setScenarioMode(sc, ts);
+    });
+  });
+}
+
+function setScenarioMode(mode, timestep = 'peak_burst'){
+  homeState.activeReplayMode = mode;
+  homeState.activeTimestep = timestep;
+
+  if(mode === '2005_deluge'){
+    if(timestep === 'daily_average'){
+      homeState.activeReplayRainfall = "39.3 mm/hr";
+    } else if(timestep === 'sustained_deluge'){
+      homeState.activeReplayRainfall = "72.5 mm/hr";
+    } else {
+      homeState.activeReplayRainfall = "143.9 mm/hr";
+    }
+  } else if(mode === '2017_flood'){
+    if(timestep === 'daily_average'){
+      homeState.activeReplayRainfall = "13.8 mm/hr";
+    } else {
+      homeState.activeReplayRainfall = "100.0 mm/hr";
+    }
+  } else {
+    homeState.activeReplayRainfall = null;
+  }
+
+  // Update card styles
+  const bLive = document.getElementById('btnReplayLive');
+  const b2005 = document.getElementById('btnReplay2005');
+  const b2017 = document.getElementById('btnReplay2017');
+
+  if(bLive){
+    bLive.className = `hist-btn-card ${mode === 'live' ? 'active' : ''}`;
+  }
+  if(b2005){
+    b2005.className = `hist-btn-card ${mode === '2005_deluge' ? 'active active-deluge' : ''}`;
+  }
+  if(b2017){
+    b2017.className = `hist-btn-card ${mode === '2017_flood' ? 'active active-flood' : ''}`;
+  }
+
+  // Sync dropdown selector if present
+  const sel = document.getElementById('routeWeatherModeSelect');
+  if(sel){
+    if(mode === 'live') sel.value = 'live';
+    else if(mode === '2005_deluge'){
+      sel.value = timestep === 'daily_average' ? 'hist_2005_avg' : (timestep === 'sustained_deluge' ? 'hist_2005_sustained' : 'hist_2005_peak');
+    } else if(mode === '2017_flood'){
+      sel.value = timestep === 'daily_average' ? 'hist_2017_avg' : 'hist_2017_peak';
+    }
+  }
+
+  // Update details container HTML
+  const detailsEl = document.getElementById('histReplayDetailsArea');
+  if(detailsEl){
+    detailsEl.innerHTML = renderHistReplayDetailsHTML();
+    wireHistTimestepEvents();
+  }
+
+  // Also update Location Details badge if rendered
+  const locDetailBadge = document.getElementById('locDetailScenarioBadge');
+  if(locDetailBadge){
+    locDetailBadge.innerHTML = mode === 'live' ? '🟢 Live Weather API' : (mode === '2005_deluge' ? '🏛️ 2005 Deluge Replay' : '🏛️ 2017 Flood Replay');
+  }
+  const locDetailRainfall = document.getElementById('locDetailRainfallVal');
+  if(locDetailRainfall && homeState.activeReplayRainfall){
+    locDetailRainfall.textContent = homeState.activeReplayRainfall;
+  }
+
+  // Compute route immediately with the chosen scenario / live weather
+  computeRoute();
+}
+
 function renderHome(){
   const cityOptions = Object.keys(CITY_DATA).map(c=>`<option value="${c}" ${c===homeState.city?'selected':''}>${c}</option>`).join('');
   const areaOptions = homeState.city ? Object.keys(CITY_DATA[homeState.city].areas).map(a=>`<option value="${a}" ${a===homeState.area?'selected':''}>${a}</option>`).join('') : '';
@@ -2486,13 +2802,27 @@ function renderHome(){
           ` : `
             <div class="info-grid">
               <div class="info-item"><div class="info-label">Location</div><div class="info-value">${homeState.area}, ${homeState.city}</div></div>
-              <div class="info-item"><div class="info-label">Rainfall</div><div class="info-value">${areaInfo.rainfall}</div></div>
+              <div class="info-item"><div class="info-label">Rainfall</div><div class="info-value" id="locDetailRainfallVal">${homeState.activeReplayMode !== 'live' && homeState.activeReplayRainfall ? homeState.activeReplayRainfall : areaInfo.rainfall}</div></div>
               <div class="info-item"><div class="info-label">Predicted water depth</div><div class="info-value">${areaInfo.depth}</div></div>
               <div class="info-item"><div class="info-label">Flood severity</div><div class="info-value">${severityPillHTML(areaInfo.severity)}</div></div>
               <div class="info-item"><div class="info-label">Forecast horizon</div><div class="info-value">${areaInfo.horizon}</div></div>
               <div class="info-item"><div class="info-label">Drainage status</div><div class="info-value">${areaInfo.drainage}</div></div>
             </div>
           `}
+          <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:0.75rem;font-weight:700;color:var(--navy);">Weather / Replay Mode:</span>
+              <span id="locDetailScenarioBadge" style="font-size:0.72rem;font-weight:800;padding:2px 7px;border-radius:8px;background:${homeState.activeReplayMode==='live'?'#EFF6FF':'#FEF3C7'};color:${homeState.activeReplayMode==='live'?'#1D4ED8':'#B45309'};border:1px solid ${homeState.activeReplayMode==='live'?'#93C5FD':'#FCD34D'};">
+                ${homeState.activeReplayMode === 'live' ? '🟢 Live Weather API' : (homeState.activeReplayMode === '2005_deluge' ? '🏛️ 2005 Deluge Replay' : '🏛️ 2017 Flood Replay')}
+              </span>
+            </div>
+            ${homeState.activeReplayMode !== 'live' ? `
+              <div style="font-size:0.74rem;color:#78350F;background:#FFFBEB;padding:6px 8px;border-radius:4px;border:1px solid #FDE68A;margin-top:6px;line-height:1.35;">
+                <strong>Replayed Intensity:</strong> ${homeState.activeReplayRainfall || (homeState.activeReplayMode === '2005_deluge' ? '143.9 mm/hr' : '100.0 mm/hr')}<br/>
+                <em>Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.</em>
+              </div>
+            ` : ''}
+          </div>
         </div>
       </div>
 
@@ -2510,13 +2840,67 @@ function renderHome(){
             </div>
           </div>
 
+          <!-- HISTORICAL FLOOD REPLAY SECTION -->
+          <div class="hist-replay-panel" id="histReplayPanel">
+            <div class="hist-replay-header">
+              <div class="hist-replay-title">
+                <span style="font-size:1.25rem;">🏛️</span>
+                <span>Historical Flood Replay</span>
+                <span class="proto-chip" style="font-size:0.68rem;background:#E0F2FE;color:#0369A1;border-color:#BAE6FD;">Benchmark Events</span>
+              </div>
+              <div style="font-size:0.75rem;color:var(--text-muted);">
+                Select an event to replay official deluge rainfall through the hydrodynamic route engine:
+              </div>
+            </div>
+
+            <!-- 3 Main Interactive Buttons -->
+            <div class="hist-buttons-grid">
+              <!-- Button 1: Live OpenWeatherMap -->
+              <div class="hist-btn-card ${homeState.activeReplayMode === 'live' ? 'active' : ''}" id="btnReplayLive" role="button" tabindex="0">
+                <div class="hist-btn-top">
+                  <div class="hist-btn-title">🟢 Live OpenWeatherMap</div>
+                  <span style="font-size:0.68rem;font-weight:800;background:#DBEAFE;color:#1E40AF;padding:2px 6px;border-radius:6px;">LIVE API</span>
+                </div>
+                <div class="hist-btn-sub">Real-time weather API feed with automated hydrodynamic nowcasting</div>
+              </div>
+
+              <!-- Button 2: Mumbai 2005 Deluge -->
+              <div class="hist-btn-card ${homeState.activeReplayMode === '2005_deluge' ? 'active active-deluge' : ''}" id="btnReplay2005" role="button" tabindex="0">
+                <div class="hist-btn-top">
+                  <div class="hist-btn-title">🏛️ Mumbai 2005 Deluge</div>
+                  <span style="font-size:0.68rem;font-weight:800;background:#FEE2E2;color:#991B1B;padding:2px 6px;border-radius:6px;">944.2 mm / 24h</span>
+                </div>
+                <div class="hist-btn-sub">26 July 2005 · IMD MAUSAM Table 7 (143.9 mm/hr peak burst)</div>
+              </div>
+
+              <!-- Button 3: Mumbai 2017 Flood -->
+              <div class="hist-btn-card ${homeState.activeReplayMode === '2017_flood' ? 'active active-flood' : ''}" id="btnReplay2017" role="button" tabindex="0">
+                <div class="hist-btn-top">
+                  <div class="hist-btn-title">🏛️ Mumbai 2017 Flood</div>
+                  <span style="font-size:0.68rem;font-weight:800;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:6px;">331.4 mm / 24h</span>
+                </div>
+                <div class="hist-btn-sub">29 August 2017 · MOSDAC ISRO / IMD (100.0 mm/hr peak AWS burst)</div>
+              </div>
+            </div>
+
+            <!-- Dynamic Details Box: Timestep Controls, Replayed Rainfall, and Honest Disclaimer -->
+            <div id="histReplayDetailsArea">
+              ${renderHistReplayDetailsHTML()}
+            </div>
+          </div>
+
           <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:var(--space-4);flex-wrap:wrap;gap:12px;">
             <div style="flex:1;min-width:240px;">
               <label class="field-label" for="routeWeatherModeSelect" style="font-weight:700;color:var(--navy);display:flex;align-items:center;gap:6px;margin-bottom:4px;">
                 <span>🌧️ Weather Evaluation Mode:</span>
               </label>
               <select id="routeWeatherModeSelect" style="width:100%;padding:8px 12px;font-size:0.85rem;border-radius:var(--radius-sm);border:1.5px solid #004E72;background:white;font-weight:600;color:var(--navy);cursor:pointer;">
-                <option value="live">🟢 Live OpenWeatherMap API (Real-time Rainfall)</option>
+                <option value="live" ${homeState.activeReplayMode==='live'?'selected':''}>🟢 Live OpenWeatherMap API (Real-time Rainfall)</option>
+                <option value="hist_2005_peak" ${homeState.activeReplayMode==='2005_deluge'&&homeState.activeTimestep==='peak_burst'?'selected':''}>🏛️ Historical: 26 July 2005 Deluge (Peak Burst 143.9 mm/hr | IMD MAUSAM / MHA)</option>
+                <option value="hist_2005_avg" ${homeState.activeReplayMode==='2005_deluge'&&homeState.activeTimestep==='daily_average'?'selected':''}>🏛️ Historical: 26 July 2005 (24-Hour Average 39.3 mm/hr | 944.2 mm Total)</option>
+                <option value="hist_2005_sustained" ${homeState.activeReplayMode==='2005_deluge'&&homeState.activeTimestep==='sustained_deluge'?'selected':''}>🏛️ Historical: 26 July 2005 (Sustained Deluge 72.5 mm/hr | 1200–1500 UTC)</option>
+                <option value="hist_2017_peak" ${homeState.activeReplayMode==='2017_flood'&&homeState.activeTimestep==='peak_burst'?'selected':''}>🏛️ Historical: 29 August 2017 Flood (Peak Burst 100.0 mm/hr | MOSDAC / IMD)</option>
+                <option value="hist_2017_avg" ${homeState.activeReplayMode==='2017_flood'&&homeState.activeTimestep==='daily_average'?'selected':''}>🏛️ Historical: 29 August 2017 (24-Hour Average 13.8 mm/hr | 331.4 mm Total)</option>
                 <option value="monsoon_80">🔴 Simulated Monsoon Deluge (80 mm/hr — High Flood Risk)</option>
                 <option value="moderate_35">🟠 Simulated Heavy Rain (35 mm/hr — Moderate Ponding)</option>
                 <option value="dry_0">🟢 Simulated Dry Weather (0 mm/hr — Completely Safe)</option>
@@ -2584,6 +2968,44 @@ function renderHome(){
   });
   document.getElementById('useMyLocationBtn').addEventListener('click', requestGeolocation);
   document.getElementById('checkRouteBtn').addEventListener('click', computeRoute);
+
+  // Historical Flood Replay interactive buttons & sync
+  const bLive = document.getElementById('btnReplayLive');
+  if(bLive) bLive.addEventListener('click', () => setScenarioMode('live'));
+
+  const b2005 = document.getElementById('btnReplay2005');
+  if(b2005) b2005.addEventListener('click', () => setScenarioMode('2005_deluge', 'peak_burst'));
+
+  const b2017 = document.getElementById('btnReplay2017');
+  if(b2017) b2017.addEventListener('click', () => setScenarioMode('2017_flood', 'peak_burst'));
+
+  wireHistTimestepEvents();
+
+  const weatherModeSelectEl = document.getElementById('routeWeatherModeSelect');
+  if(weatherModeSelectEl){
+    weatherModeSelectEl.addEventListener('change', e => {
+      const val = e.target.value;
+      if(val === 'hist_2005_peak') setScenarioMode('2005_deluge', 'peak_burst');
+      else if(val === 'hist_2005_avg') setScenarioMode('2005_deluge', 'daily_average');
+      else if(val === 'hist_2005_sustained') setScenarioMode('2005_deluge', 'sustained_deluge');
+      else if(val === 'hist_2017_peak') setScenarioMode('2017_flood', 'peak_burst');
+      else if(val === 'hist_2017_avg') setScenarioMode('2017_flood', 'daily_average');
+      else if(val === 'live') setScenarioMode('live', 'peak_burst');
+      else {
+        // Simulated modes
+        homeState.activeReplayMode = 'simulated';
+        const cardLive = document.getElementById('btnReplayLive');
+        const card2005 = document.getElementById('btnReplay2005');
+        const card2017 = document.getElementById('btnReplay2017');
+        if(cardLive) cardLive.className = 'hist-btn-card';
+        if(card2005) card2005.className = 'hist-btn-card';
+        if(card2017) card2017.className = 'hist-btn-card';
+        const detArea = document.getElementById('histReplayDetailsArea');
+        if(detArea) detArea.innerHTML = '';
+        computeRoute();
+      }
+    });
+  }
 
   const useLiveLocBtn = document.getElementById('useLiveLocOriginBtn');
   if(useLiveLocBtn) useLiveLocBtn.addEventListener('click', useLiveLocationForOrigin);
@@ -2702,7 +3124,17 @@ async function computeRoute(){
 
   const mode = weatherModeEl ? weatherModeEl.value : 'live';
   let rainQuery = '';
-  if(mode === 'monsoon_80'){
+  if(mode === 'hist_2005_peak'){
+    rainQuery = '&scenario_id=2005_deluge&timestep=peak_burst';
+  } else if(mode === 'hist_2005_avg'){
+    rainQuery = '&scenario_id=2005_deluge&timestep=daily_average';
+  } else if(mode === 'hist_2005_sustained'){
+    rainQuery = '&scenario_id=2005_deluge&timestep=sustained_deluge';
+  } else if(mode === 'hist_2017_peak'){
+    rainQuery = '&scenario_id=2017_flood&timestep=peak_burst';
+  } else if(mode === 'hist_2017_avg'){
+    rainQuery = '&scenario_id=2017_flood&timestep=daily_average';
+  } else if(mode === 'monsoon_80'){
     rainQuery = '&rainfall_mm_hr=80.0';
   } else if(mode === 'moderate_35'){
     rainQuery = '&rainfall_mm_hr=35.0';
@@ -2831,6 +3263,18 @@ function renderRouteResult(){
         </span>
       </div>
     </div>
+
+    ${q.scenario ? `
+      <!-- HISTORICAL SCENARIO REPLAY DISCLOSURE -->
+      <div style="margin-top:var(--space-2);background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:var(--radius-sm);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:0.83rem;color:#78350F;">
+          <strong>🏛️ Historical Replay:</strong> ${q.scenario.event_name} &nbsp;·&nbsp; <strong>Rainfall Intensity:</strong> ${q.rainfall_mm_hr} mm/hr (${q.scenario.timestep_label || 'Peak Burst'})
+        </div>
+        <div style="font-size:0.75rem;color:#92400E;font-weight:600;background:white;padding:3px 8px;border-radius:4px;border:1px solid #FDE68A;">
+          ${q.validation_status || 'Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.'}
+        </div>
+      </div>
+    ` : ''}
 
     ${noSafeWarning ? `
       <!-- NO SAFE ROUTE EMERGENCY ADVISORY -->
@@ -3240,7 +3684,9 @@ const PRESETS = {
   "Normal Rain": {rainfall:20, duration:30, blockage:0},
   "Heavy Rain": {rainfall:55, duration:60, blockage:10},
   "Extreme Rain": {rainfall:85, duration:90, blockage:15},
-  "Heavy Rain + Drain Blockage": {rainfall:60, duration:75, blockage:60}
+  "Heavy Rain + Drain Blockage": {rainfall:60, duration:75, blockage:60},
+  "Mumbai 2005 Deluge": {rainfall:143.9, duration:180, blockage:50, isHistorical:true},
+  "Mumbai 2017 Flood": {rainfall:100.0, duration:120, blockage:40, isHistorical:true}
 };
 const TIMELINE = ["Now","+30 min","+60 min","+90 min","+120 min","+180 min"];
 
@@ -3271,7 +3717,7 @@ function renderSimulator(){
 
           <div class="sim-control-group">
             <label class="field-label">Rainfall Intensity <span class="sim-value">${sim.rainfall} mm/hr</span></label>
-            <input type="range" id="rainfallSlider" min="5" max="100" value="${sim.rainfall}" />
+            <input type="range" id="rainfallSlider" min="5" max="160" value="${sim.rainfall}" />
           </div>
           <div class="sim-control-group">
             <label class="field-label">Rainfall Duration <span class="sim-value">${sim.duration} min</span></label>
@@ -3418,6 +3864,13 @@ function simResultInnerHTML(){
           <div class="ba-map">${mockMapSVG({depthLayer:true, severity: severityForDepth(depthNow)})}</div>
         </div>
       </div>
+
+      ${(PRESETS[sim.preset] && PRESETS[sim.preset].isHistorical) ? `
+        <div style="margin-top:12px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:var(--radius-sm);padding:10px 14px;font-size:0.80rem;color:#78350F;line-height:1.45;">
+          <strong>🏛️ Historical Benchmark Scenario:</strong> ${sim.preset} (${sim.rainfall} mm/hr)<br/>
+          <span style="font-size:0.75rem;color:#92400E;font-weight:600;">Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.</span>
+        </div>
+      ` : ''}
 
       <div class="sim-disclaimer">
         This is a modelled what-if scenario based on the parameters you selected. It is not an actual weather forecast and should not be used as the sole basis for safety decisions.
