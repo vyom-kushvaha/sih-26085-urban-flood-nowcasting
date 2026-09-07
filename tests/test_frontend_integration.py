@@ -372,6 +372,39 @@ def test_safe_route_hybrid_breakdown():
     print("  [PASS] Test 20: Safe Route Endpoint Exposes Hybrid Metadata & Fallback Alignment")
 
 
+def test_scenario_simulator_frontend_integration():
+    """Test 21: Verify Scenario Simulator in frontend/index.html is backed by /api/v1/risk/simulate and fake math is removed."""
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.text
+
+    # 1. Verify user-requested presets exist
+    assert "50 mm/hr (Heavy Rain)" in html
+    assert "80 mm/hr (Severe Rain)" in html
+    assert "120 mm/hr (Cloudburst)" in html
+
+    # 2. Verify fake client-side calculation functions are deleted
+    assert "function computeSeverityFromInputs" not in html
+    assert "function computeDepthFromInputs" not in html
+
+    # 3. Verify real backend API fetch is present
+    assert "/api/v1/risk/simulate" in html
+    assert "rainfall_mm_hr: sim.rainfall" in html
+    assert "blockage_pct: sim.blockage" in html
+
+    # 4. Verify the 4 core physical metrics exist in the UI template
+    assert "Predicted flood depth" in html
+    assert "Flood severity & score" in html
+    assert "Effective drainage" in html
+    assert "Drainage deficit" in html
+
+    # 5. Verify sensitivity table and DEM/drainage context exist
+    assert "Blockage Sensitivity Breakdown" in html
+    assert "Copernicus DEM" in html
+
+    print("  [PASS] Test 21: Scenario Simulator Frontend Coupling & Mock Removal Verified")
+
+
 if __name__ == "__main__":
     print("=== RUNNING FRONTEND INTEGRATION & FASTAPI TESTCLIENT TESTS ===")
     test_root_serves_frontend_index_html()
@@ -394,7 +427,9 @@ if __name__ == "__main__":
     test_focus_current_route_logic_and_safeguards()
     test_map_drag_preserves_route_state()
     test_safe_route_hybrid_breakdown()
-    print("\n[SUCCESS] ALL 20 INTEGRATION, LIVE GPS, BOUNDARY, MAP CONTROL & HYBRID TESTS PASSED SUCCESSFULLY!")
+    test_scenario_simulator_frontend_integration()
+    print("\n[SUCCESS] ALL 21 INTEGRATION, LIVE GPS, BOUNDARY, MAP CONTROL, SIMULATOR & HYBRID TESTS PASSED SUCCESSFULLY!")
+
 
 
 

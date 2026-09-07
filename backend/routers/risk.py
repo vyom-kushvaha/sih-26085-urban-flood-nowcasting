@@ -22,6 +22,7 @@ from backend.services.historical_scenarios import (
     get_historical_scenario,
     get_scenario_replay_rainfall
 )
+from services.weather_service import get_weather_service
 
 router = APIRouter(prefix="/api/v1", tags=["Flood Risk & Hydrology"])
 
@@ -34,10 +35,20 @@ class RiskCalculationRequest(BaseModel):
     duration_hours: float = Field(1.0, ge=0.5, le=12.0, description="Prediction window in hours")
 
 
+class RiskForecastRequest(BaseModel):
+    lat: float = Field(..., ge=-90.0, le=90.0, examples=[19.0760], description="Latitude of target location (-90 to 90)")
+    lon: float = Field(..., ge=-180.0, le=180.0, examples=[72.8777], description="Longitude of target location (-180 to 180)")
+    horizon_hours: int = Field(3, ge=1, le=3, description="Forecast horizon in hours (strictly 1 to 3 hours)")
+    blockage_pct: float = Field(0.0, ge=0.0, le=100.0, description="Drainage blockage percentage (0 to 100%)")
+    force_refresh: bool = Field(False, description="Bypass weather cache if True")
+
+
 class ScenarioSimulationRequest(BaseModel):
-    lat: float = Field(..., ge=-90.0, le=90.0, examples=[19.0760])
-    lon: float = Field(..., ge=-180.0, le=180.0, examples=[72.8777])
-    rainfall_mm_hr: float = Field(50.0, ge=0.0, le=300.0)
+    lat: float = Field(..., ge=-90.0, le=90.0, examples=[19.0760], description="Target latitude (-90 to 90)")
+    lon: float = Field(..., ge=-180.0, le=180.0, examples=[72.8777], description="Target longitude (-180 to 180)")
+    rainfall_mm_hr: float = Field(50.0, ge=0.0, le=300.0, description="Rainfall intensity in mm/hour")
+    blockage_pct: Optional[float] = Field(0.0, ge=0.0, le=100.0, description="Drainage blockage percentage (0 to 100%)")
+    duration_hours: Optional[float] = Field(1.0, ge=0.25, le=12.0, description="Rainfall duration in hours")
 
 
 @router.post("/risk/current", response_model=Dict[str, Any])
@@ -67,13 +78,16 @@ async def calculate_current_risk(request: RiskCalculationRequest):
 @router.post("/risk/simulate", response_model=Dict[str, Any])
 async def simulate_blockage_scenarios(request: ScenarioSimulationRequest):
     """
-    Simulate flood risk across 5 drainage blockage levels (0%, 25%, 50%, 75%, 100%).
-    Used by interactive sliders on the web dashboard.
+    Simulate flood risk across 5 drainage blockage levels (0%, 25%, 50%, 75%, 100%)
+    and compute specific user scenario metrics (risk, water depth, effective drainage,
+    drainage deficit) powered by the active RiskEngine.
     """
     try:
         engine = get_risk_engine()
         scenarios = []
         blockage_levels = [0.0, 25.0, 50.0, 75.0, 100.0]
+        sim_duration = request.duration_hours if request.duration_hours is not None else 1.0
+        active_blockage = request.blockage_pct if request.blockage_pct is not None else 0.0
 
         for pct in blockage_levels:
             scenario_res = engine.calculate_risk(
@@ -81,7 +95,7 @@ async def simulate_blockage_scenarios(request: ScenarioSimulationRequest):
                 lon=request.lon,
                 rainfall_mm_hr=request.rainfall_mm_hr,
                 blockage_pct=pct,
-                duration_hours=1.0
+                duration_hours=sim_duration
             )
             scenarios.append({
                 "blockage_pct": pct,
@@ -89,16 +103,314 @@ async def simulate_blockage_scenarios(request: ScenarioSimulationRequest):
                 "risk_level": scenario_res["risk_level"],
                 "color_code": scenario_res["color_code"],
                 "water_depth_cm": scenario_res["water_depth_cm"],
-                "effective_drainage_mm_hr": scenario_res["hydrology_metrics"]["effective_drainage_mm_hr"]
+                "water_depth_mm": scenario_res.get("water_depth_mm", round(scenario_res["water_depth_cm"] * 10.0, 1)),
+                "gross_runoff_mm_hr": scenario_res["hydrology_metrics"].get("gross_runoff_mm_hr"),
+                "base_drainage_mm_hr": scenario_res["hydrology_metrics"].get("base_drainage_mm_hr"),
+                "effective_drainage_mm_hr": scenario_res["hydrology_metrics"]["effective_drainage_mm_hr"],
+                "drainage_deficit_mm_hr": scenario_res["hydrology_metrics"].get("drainage_deficit_mm_hr"),
+                "drainage_status": scenario_res["drainage"].get("drainage_status")
+            })
+
+        # Calculate active scenario for user's specified blockage & duration
+        active_res = engine.calculate_risk(
+            lat=request.lat,
+            lon=request.lon,
+            rainfall_mm_hr=request.rainfall_mm_hr,
+            blockage_pct=active_blockage,
+            duration_hours=sim_duration
+        )
+
+        # Baseline scenario for normal conditions (0 mm/hr, 0% blockage)
+        baseline_res = engine.calculate_risk(
+            lat=request.lat,
+            lon=request.lon,
+            rainfall_mm_hr=0.0,
+            blockage_pct=0.0,
+            duration_hours=sim_duration
+        )
+
+        # Timeline steps for progressive ponding accumulation / drainage
+        # Preserves RiskEngine's mass-balance logic
+        net_excess_rate = active_res["hydrology_metrics"].get("net_excess_rate_mm_hr", 0.0)
+        effective_drainage = active_res["hydrology_metrics"].get("effective_drainage_mm_hr", 0.0)
+        slope_relief = active_res["hydrology_metrics"].get("slope_relief_mm_hr", 0.0)
+        drain_rate = effective_drainage + slope_relief
+
+        # Standard dashboard time steps
+        timeline_def = [
+            ("Now", 0.0),
+            ("+30 min", 0.5),
+            ("+60 min", 1.0),
+            ("+90 min", 1.5),
+            ("+120 min", 2.0),
+            ("+180 min", 3.0),
+        ]
+
+        timeline = []
+        for step_idx, (label, t_hr) in enumerate(timeline_def):
+            if t_hr == 0.0:
+                step_depth_mm = 0.0
+            elif t_hr <= sim_duration:
+                step_depth_mm = round(net_excess_rate * t_hr, 1)
+            else:
+                peak_depth_mm = net_excess_rate * sim_duration
+                recession_time = t_hr - sim_duration
+                step_depth_mm = max(0.0, round(peak_depth_mm - (drain_rate * recession_time), 1))
+
+            step_depth_cm = round(step_depth_mm / 10.0, 2)
+
+            # Determine risk level from step depth & active conditions
+            if step_depth_cm > 15.0:
+                step_level = "CRITICAL"
+                step_color = "#ef4444"
+                step_score = max(active_res["risk_score"], 85.0)
+            elif step_depth_cm > 5.0:
+                step_level = "HIGH"
+                step_color = "#f97316"
+                step_score = max(active_res["risk_score"], 65.0)
+            elif step_depth_cm > 0.0 or (t_hr <= sim_duration and request.rainfall_mm_hr > 20.0):
+                step_level = "MODERATE"
+                step_color = "#eab308"
+                step_score = max(active_res["risk_score"] * 0.7, 40.0)
+            else:
+                step_level = "LOW"
+                step_color = "#22c55e"
+                step_score = 0.0 if t_hr == 0.0 else min(active_res["risk_score"], 20.0)
+
+            timeline.append({
+                "step": step_idx,
+                "label": label,
+                "hours": t_hr,
+                "minutes": int(t_hr * 60),
+                "water_depth_cm": step_depth_cm,
+                "water_depth_mm": step_depth_mm,
+                "risk_score": round(step_score, 1),
+                "risk_level": step_level,
+                "color_code": step_color
             })
 
         return {
             "coordinates": {"lat": request.lat, "lon": request.lon},
             "rainfall_mm_hr": request.rainfall_mm_hr,
-            "scenarios": scenarios
+            "blockage_pct": active_blockage,
+            "duration_hours": sim_duration,
+            "active_scenario": {
+                "risk_score": active_res["risk_score"],
+                "risk_level": active_res["risk_level"],
+                "color_code": active_res["color_code"],
+                "water_depth_cm": active_res["water_depth_cm"],
+                "water_depth_mm": active_res["water_depth_mm"],
+                "gross_runoff_mm_hr": active_res["hydrology_metrics"].get("gross_runoff_mm_hr"),
+                "base_drainage_mm_hr": active_res["hydrology_metrics"].get("base_drainage_mm_hr"),
+                "effective_drainage_mm_hr": active_res["hydrology_metrics"]["effective_drainage_mm_hr"],
+                "drainage_deficit_mm_hr": active_res["hydrology_metrics"].get("drainage_deficit_mm_hr"),
+                "slope_relief_mm_hr": active_res["hydrology_metrics"].get("slope_relief_mm_hr"),
+                "net_excess_rate_mm_hr": active_res["hydrology_metrics"].get("net_excess_rate_mm_hr"),
+                "drainage_status": active_res["drainage"].get("drainage_status"),
+                "elevation_m": active_res["hydrology_metrics"].get("elevation_m"),
+                "slope_percent": active_res["hydrology_metrics"].get("slope_percent"),
+                "dem_status": active_res["hydrology_metrics"].get("dem_status"),
+                "nearest_drain_name": active_res["drainage"].get("nearest_drain_name"),
+                "drain_distance_m": active_res["drainage"].get("distance_meters"),
+                "contributing_factors": active_res.get("contributing_factors", [])
+            },
+            "baseline_scenario": {
+                "risk_score": baseline_res["risk_score"],
+                "risk_level": baseline_res["risk_level"],
+                "color_code": baseline_res["color_code"],
+                "water_depth_cm": baseline_res["water_depth_cm"],
+                "effective_drainage_mm_hr": baseline_res["hydrology_metrics"]["effective_drainage_mm_hr"]
+            },
+            "scenarios": scenarios,
+            "timeline": timeline
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+
+
+def compute_risk_forecast(
+    lat: float,
+    lon: float,
+    horizon_hours: int = 3,
+    blockage_pct: float = 0.0,
+    force_refresh: bool = False
+) -> Dict[str, Any]:
+    """
+    Compute 0 to horizon_hours (max 3 hours) localized flood-risk nowcasting.
+    Integrates Open-Meteo numerical weather forecast with the active RiskEngine
+    and physical 1D hydrological mass balance for progressive ponding accumulation.
+    """
+    if not (1 <= horizon_hours <= 3):
+        raise ValueError("horizon_hours must be an integer between 1 and 3")
+
+    weather_svc = get_weather_service()
+    engine = get_risk_engine()
+
+    # Query weather forecast for T+0 up to T+horizon_hours (horizon_hours + 1 hourly steps)
+    steps_count = horizon_hours + 1
+    weather_steps = weather_svc.get_hourly_rainfall_forecast(lat, lon, hours=steps_count, force_refresh=force_refresh)
+
+    cumulative_depth_mm = 0.0
+    timeline = []
+    is_any_mock = False
+    sources_used = set()
+    root_hydro = {}
+
+    for idx, item in enumerate(weather_steps[:steps_count]):
+        h = item.get("hour", idx)
+        lead_time = item.get("lead_time", "NOW" if h == 0 else f"+{h} HOUR" if h == 1 else f"+{h} HOURS")
+        timestamp = item.get("timestamp", "")
+        rainfall_mm_hr = float(item.get("rainfall_mm_hr", 0.0))
+        is_mock = bool(item.get("is_mock", False))
+        source = item.get("source", "Unknown")
+        if is_mock:
+            is_any_mock = True
+        sources_used.add(source)
+
+        # Call active RiskEngine for 1-hour physical response
+        step_res = engine.calculate_risk(
+            lat=lat,
+            lon=lon,
+            rainfall_mm_hr=rainfall_mm_hr,
+            blockage_pct=blockage_pct,
+            duration_hours=1.0
+        )
+
+        hydro = step_res.get("hydrology_metrics", {})
+        if idx == 0:
+            root_hydro = hydro
+
+        gross_runoff = hydro.get("gross_runoff_mm_hr", 0.0)
+        effective_drainage = hydro.get("effective_drainage_mm_hr", 0.0)
+        slope_pct = hydro.get("slope_percent", 0.0)
+        elevation_m = hydro.get("elevation_m")
+
+        # Slope relief bounded at 25% max
+        slope_relief = min(gross_runoff * 0.25, gross_runoff * (slope_pct / 8.0 * 0.25))
+
+        # Hourly excess depth generated in this hour alone
+        hourly_excess_depth_mm = max(0.0, gross_runoff - effective_drainage - slope_relief)
+        hourly_excess_depth_cm = round(hourly_excess_depth_mm / 10.0, 2)
+
+        # Hydrological mass balance for progressive ponded water depth:
+        # Net rate (mm/hr): positive accumulates water, negative allows standing water to drain
+        net_rate = gross_runoff - effective_drainage - slope_relief
+        if idx == 0:
+            cumulative_depth_mm = max(0.0, net_rate * 1.0)
+        else:
+            cumulative_depth_mm = max(0.0, cumulative_depth_mm + (net_rate * 1.0))
+
+        cumulative_water_depth_cm = round(cumulative_depth_mm / 10.0, 2)
+
+        # Safety adjustment based on standing ponded water depth
+        engine_score = step_res.get("risk_score", 0.0)
+        if cumulative_water_depth_cm > 15.0:
+            forecast_risk_score = max(engine_score, 85.0)
+            forecast_risk_level = "CRITICAL"
+            forecast_color_code = "#ef4444"
+        elif cumulative_water_depth_cm > 5.0:
+            forecast_risk_score = max(engine_score, 65.0)
+            forecast_risk_level = "HIGH" if forecast_risk_score < 80.0 else "CRITICAL"
+            forecast_color_code = "#f97316" if forecast_risk_score < 80.0 else "#ef4444"
+        else:
+            forecast_risk_score = engine_score
+            forecast_risk_level = step_res.get("risk_level", "LOW")
+            forecast_color_code = step_res.get("color_code", "#22c55e")
+
+        timeline.append({
+            "hour": h,
+            "lead_time": lead_time,
+            "timestamp": timestamp,
+            "rainfall_mm_hr": rainfall_mm_hr,
+            "risk_score": forecast_risk_score,
+            "risk_level": forecast_risk_level,
+            "color_code": forecast_color_code,
+            "hourly_water_depth_cm": hourly_excess_depth_cm,
+            "cumulative_water_depth_cm": cumulative_water_depth_cm,
+            "water_depth_cm": cumulative_water_depth_cm,
+            "base_drainage_mm_hr": hydro.get("base_drainage_mm_hr", effective_drainage),
+            "effective_drainage_mm_hr": effective_drainage,
+            "drainage_deficit_mm_hr": hydro.get("drainage_deficit_mm_hr", 0.0),
+            "gross_runoff_mm_hr": gross_runoff,
+            "terrain_vulnerability_score": hydro.get("terrain_vulnerability_score", 0.0),
+            "elevation_m": elevation_m,
+            "slope_percent": slope_pct,
+            "contributing_factors": step_res.get("contributing_factors", []),
+            "weather_source": source,
+            "is_weather_fallback": is_mock
+        })
+
+    is_dem_fallback = root_hydro.get("is_dem_fallback", False)
+    terrain_prov = "REAL_DATA (Copernicus DEM 30m)" if not is_dem_fallback else "FALLBACK (Default Urban Baseline)"
+
+    return {
+        "location": {"lat": lat, "lon": lon},
+        "nowcast_type": "weather-forecast-driven urban flood nowcasting",
+        "methodology": "Open-Meteo numerical weather prediction coupled with HYDROLENS 1D runoff mass balance & DEM terrain vulnerability",
+        "disclaimer": "Forecast is driven by numerical weather prediction models (Open-Meteo). This is NOT Doppler radar nowcasting or IMD radar assimilation.",
+        "horizon_hours": horizon_hours,
+        "lead_time_range": f"T+0h to T+{horizon_hours}h",
+        "blockage_pct": blockage_pct,
+        "terrain": {
+            "elevation_m": root_hydro.get("elevation_m"),
+            "slope_percent": root_hydro.get("slope_percent"),
+            "dem_status": root_hydro.get("dem_status", "REAL_DEM")
+        },
+        "data_provenance": {
+            "weather_input": "FALLBACK_MOCK" if is_any_mock else "REAL_FORECAST",
+            "weather_source": ", ".join(sorted(sources_used)),
+            "terrain_elevation": terrain_prov,
+            "drainage": "Spatial OSM Network" if timeline else "Default",
+            "hydrology_model": "HYDROLENS 1D Runoff & Ponding Engine"
+        },
+        "forecast": timeline
+    }
+
+
+@router.get("/risk/forecast", response_model=Dict[str, Any])
+async def get_risk_forecast(
+    lat: float = Query(..., ge=-90.0, le=90.0, examples=[19.0760], description="Latitude (-90 to 90)"),
+    lon: float = Query(..., ge=-180.0, le=180.0, examples=[72.8777], description="Longitude (-180 to 180)"),
+    horizon_hours: int = Query(3, ge=1, le=3, description="Forecast horizon in hours (strictly 1 to 3 hours)"),
+    blockage_pct: float = Query(0.0, ge=0.0, le=100.0, description="Drainage blockage percentage (0 to 100%)"),
+    force_refresh: bool = Query(False, description="Bypass weather cache if True")
+):
+    """
+    0-3 Hour Weather-Forecast-Driven Urban Flood Nowcasting.
+    Generates localized flood-risk predictions across T+0h to T+Hh (H <= 3) using
+    Open-Meteo hourly weather forecast, 30m DEM terrain, and active HYDROLENS RiskEngine.
+    """
+    try:
+        return compute_risk_forecast(
+            lat=lat,
+            lon=lon,
+            horizon_hours=horizon_hours,
+            blockage_pct=blockage_pct,
+            force_refresh=force_refresh
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=422, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk forecast failed: {str(e)}")
+
+
+@router.post("/risk/forecast", response_model=Dict[str, Any])
+async def post_risk_forecast(request: RiskForecastRequest):
+    """
+    0-3 Hour Weather-Forecast-Driven Urban Flood Nowcasting via POST body.
+    """
+    try:
+        return compute_risk_forecast(
+            lat=request.lat,
+            lon=request.lon,
+            horizon_hours=request.horizon_hours,
+            blockage_pct=request.blockage_pct,
+            force_refresh=request.force_refresh
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=422, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk forecast failed: {str(e)}")
 
 
 class ScenarioReplayRequest(BaseModel):
@@ -161,17 +473,28 @@ async def get_elevation_and_slope(
     lon: float = Query(..., ge=-180.0, le=180.0, examples=[72.8777])
 ):
     """
-    Query 30m CartoDEM elevation (meters) and slope (%) for a given coordinate.
+    Query 30m terrain elevation (meters) and slope (%) for a given coordinate.
+    Exposes authentic DEM raster observations, derived slope gradient, and transparent fallback status.
     """
     try:
         dem_processor = get_dem_processor()
         info = dem_processor.get_elevation_and_slope(lat, lon)
         return {
+            "latitude": lat,
+            "longitude": lon,
             "coordinates": {"lat": lat, "lon": lon},
             "elevation_m": info["elevation_m"],
             "slope_deg": info["slope_deg"],
             "slope_percent": info["slope_percent"],
-            "in_dem_coverage": info["in_dem_coverage"]
+            "in_dem_coverage": info["in_dem_coverage"],
+            "dem_status": info.get("dem_status", "UNKNOWN"),
+            "data_source": info.get("data_source", "Unknown"),
+            "tile_filename": info.get("tile_filename"),
+            "is_fallback": info.get("is_fallback", False),
+            "provenance": info.get("provenance", {
+                "elevation": "REAL_DATA" if info["in_dem_coverage"] else "FALLBACK",
+                "slope": "MODEL_OUTPUT" if info["in_dem_coverage"] else "FALLBACK"
+            })
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Elevation lookup failed: {str(e)}")
@@ -411,37 +734,58 @@ def resolve_location(
     )
 
 
-_OSRM_CACHE: Dict[Tuple[float, float, float, float], List[List[float]]] = {}
+_OSRM_CACHE: Dict[Tuple[float, float, float, float], List[Dict[str, Any]]] = {}
+
+
+def fetch_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float) -> List[Dict[str, Any]]:
+    """Query OSRM driving service with alternatives=3 for real-world OSM road routes, with memory caching."""
+    cache_key = (round(o_lat, 4), round(o_lon, 4), round(d_lat, 4), round(d_lon, 4))
+    if cache_key in _OSRM_CACHE:
+        return [dict(r) for r in _OSRM_CACHE[cache_key]]
+
+    try:
+        url = f"https://router.project-osrm.org/route/v1/driving/{o_lon},{o_lat};{d_lon},{d_lat}?overview=full&geometries=geojson&alternatives=3"
+        req = urllib.request.Request(url, headers={"User-Agent": "UrbanFloodNowcasting/1.0"})
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data.get("code") == "Ok" and data.get("routes"):
+                routes_out = []
+                for idx, r in enumerate(data["routes"]):
+                    geojson_coords = r.get("geometry", {}).get("coordinates", [])
+                    if not geojson_coords or len(geojson_coords) < 2:
+                        continue
+                    coords = [[round(pt[1], 5), round(pt[0], 5)] for pt in geojson_coords]
+                    if len(coords) > 28:
+                        step = max(1, len(coords) // 25)
+                        coords = coords[::step]
+                    coords[0] = [o_lat, o_lon]
+                    coords[-1] = [d_lat, d_lon]
+
+                    dist_km = round(r.get("distance", 0.0) / 1000.0, 1)
+                    if dist_km <= 0.0:
+                        dist_km = calculate_polyline_distance_km(coords)
+                    dur_min = max(1, int(round(r.get("duration", 0.0) / 60.0)))
+
+                    routes_out.append({
+                        "id": f"osrm_route_{idx+1}",
+                        "name": f"OSM Alternate Corridor {idx+1}" if idx > 0 else "OSM Primary Shortest Route",
+                        "coordinates": coords,
+                        "distance_km": dist_km,
+                        "estimated_duration_min": dur_min
+                    })
+
+                if routes_out and len(_OSRM_CACHE) < 2048:
+                    _OSRM_CACHE[cache_key] = [dict(r) for r in routes_out]
+                return routes_out
+    except Exception:
+        pass
+    return []
 
 
 def fetch_osrm_road_coordinates(o_lat: float, o_lon: float, d_lat: float, d_lon: float) -> Optional[List[List[float]]]:
     """Query OSRM driving service for real-world road coordinates between coordinates, with memory caching."""
-    cache_key = (round(o_lat, 4), round(o_lon, 4), round(d_lat, 4), round(d_lon, 4))
-    if cache_key in _OSRM_CACHE:
-        return [list(pt) for pt in _OSRM_CACHE[cache_key]]
-
-    try:
-        url = f"https://router.project-osrm.org/route/v1/driving/{o_lon},{o_lat};{d_lon},{d_lat}?overview=full&geometries=geojson"
-        req = urllib.request.Request(url, headers={"User-Agent": "UrbanFloodNowcasting/1.0"})
-        with urllib.request.urlopen(req, timeout=3.0) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            if data.get("code") == "Ok" and data.get("routes"):
-                geojson_coords = data["routes"][0]["geometry"]["coordinates"]
-                # Convert [lon, lat] -> [lat, lon]
-                coords = [[round(pt[1], 5), round(pt[0], 5)] for pt in geojson_coords]
-                if len(coords) > 28:
-                    # Decimate for fast hydrodynamic evaluation
-                    step = max(1, len(coords) // 25)
-                    coords = coords[::step]
-                # Ensure exact origin and destination bounds
-                coords[0] = [o_lat, o_lon]
-                coords[-1] = [d_lat, d_lon]
-                if len(_OSRM_CACHE) < 2048:
-                    _OSRM_CACHE[cache_key] = [list(pt) for pt in coords]
-                return coords
-    except Exception:
-        pass
-    return None
+    routes = fetch_osrm_routes(o_lat, o_lon, d_lat, d_lon)
+    return routes[0]["coordinates"] if routes else None
 
 
 
@@ -511,6 +855,7 @@ class RouteCalculationRequest(BaseModel):
     dest_lat: Optional[float] = None
     dest_lon: Optional[float] = None
     rainfall_mm_hr: Optional[float] = None
+    blockage_pct: Optional[float] = None
     force_refresh: Optional[bool] = False
     scenario_id: Optional[str] = None
     timestep: Optional[str] = None
@@ -524,6 +869,7 @@ def calculate_flood_routes(
     d_lat: Optional[float] = None,
     d_lon: Optional[float] = None,
     rain: Optional[float] = None,
+    blockage_pct: Optional[float] = None,
     force_refresh: bool = False,
     scenario_id: Optional[str] = None,
     timestep: Optional[str] = None
@@ -776,45 +1122,27 @@ def calculate_flood_routes(
             candidates_def = [cand1, cand2, cand3]
         else:
             # Arbitrary valid Mumbai pair: Fetch real road geometry from OSRM
-            osrm_coords = fetch_osrm_road_coordinates(actual_o_lat, actual_o_lon, actual_d_lat, actual_d_lon)
-            if not osrm_coords or len(osrm_coords) < 2:
+            osrm_routes = fetch_osrm_routes(actual_o_lat, actual_o_lon, actual_d_lat, actual_d_lon)
+            if not osrm_routes or len(osrm_routes) < 1:
                 raise HTTPException(
                     status_code=400,
                     detail="No road route could be found for this location."
                 )
 
-            dist_approx = round(len(osrm_coords) * 0.4, 1)
-            cand1 = {
-                "id": "route_mumbai_safest",
-                "name": f"Arterial Corridor via {resolved_origin['name'].split(',')[0]} (Elevated / Ridge)",
-                "coordinates": osrm_coords,
-                "distance_km": dist_approx,
-                "estimated_duration_min": max(10, int(dist_approx * 3)),
-                "is_elevated": True,
-                "is_depression": False,
-                "hotspot_keys": []
-            }
-            cand2 = {
-                "id": "route_mumbai_arterial",
-                "name": f"Direct Surface Arterial connecting {resolved_dest['name'].split(',')[0]}",
-                "coordinates": osrm_coords,
-                "distance_km": dist_approx,
-                "estimated_duration_min": max(12, int(dist_approx * 3.5)),
-                "is_elevated": False,
-                "is_depression": False,
-                "hotspot_keys": []
-            }
-            cand3 = {
-                "id": "route_mumbai_lowland",
-                "name": "Local Low-Elevation Surface Cut-through",
-                "coordinates": osrm_coords,
-                "distance_km": max(1.0, round(dist_approx * 0.9, 1)),
-                "estimated_duration_min": max(15, int(dist_approx * 4.5)),
-                "is_elevated": False,
-                "is_depression": True,
-                "hotspot_keys": []
-            }
-            candidates_def = [cand1, cand2, cand3]
+            candidates_def = []
+            for idx, ort in enumerate(osrm_routes[:3]):
+                cand_id = f"route_osrm_{idx+1}"
+                cand_name = f"OSM Alternate Corridor {idx+1}" if idx > 0 else f"OSM Primary Shortest Route"
+                candidates_def.append({
+                    "id": cand_id,
+                    "name": cand_name,
+                    "coordinates": ort["coordinates"],
+                    "distance_km": ort["distance_km"],
+                    "estimated_duration_min": ort["estimated_duration_min"],
+                    "is_elevated": False,
+                    "is_depression": False,
+                    "hotspot_keys": []
+                })
 
     # Recalculate accurate dynamic distances and travel durations based on forward geometry
     for cand in candidates_def:
@@ -833,11 +1161,12 @@ def calculate_flood_routes(
 
     active_hotspots = []
     for bh in base_hotspots:
+        h_blockage = float(blockage_pct) if blockage_pct is not None else min(90.0, 30.0 + (actual_rain * 0.8))
         h_res = engine.calculate_risk(
             lat=bh["lat"],
             lon=bh["lon"],
             rainfall_mm_hr=actual_rain,
-            blockage_pct=min(90.0, 30.0 + (actual_rain * 0.8)),
+            blockage_pct=h_blockage,
             duration_hours=1.0
         )
         h_depth = h_res["water_depth_cm"]
@@ -861,28 +1190,36 @@ def calculate_flood_routes(
         pt_scores = []
         pt_depths = []
         pt_details = []
+        high_risk_pts = []
 
         for lat, lon in coords:
-            if is_elevated:
-                blockage = 5.0
+            if blockage_pct is not None:
+                active_b = float(blockage_pct)
+            elif is_elevated:
+                active_b = 5.0
             elif is_depression:
-                blockage = min(90.0, 30.0 + (actual_rain * 0.75)) if actual_rain > 5.0 else 25.0
+                active_b = min(90.0, 30.0 + (actual_rain * 0.75)) if actual_rain > 5.0 else 25.0
             else:
-                blockage = min(50.0, 15.0 + (actual_rain * 0.40))
+                active_b = min(50.0, 15.0 + (actual_rain * 0.40))
 
-            res = engine.calculate_risk(lat=lat, lon=lon, rainfall_mm_hr=actual_rain, blockage_pct=blockage, duration_hours=1.0)
+            res = engine.calculate_risk(lat=lat, lon=lon, rainfall_mm_hr=actual_rain, blockage_pct=active_b, duration_hours=1.0)
+            hydro = res["hydrology_metrics"]
+            drain = res["drainage"]
+            elev = hydro.get("elevation_m", 15.0)
+            slope = hydro.get("slope_percent", 2.0)
+            deficit = hydro.get("drainage_deficit_mm_hr", 0.0)
 
             # Hydrodynamic adjustments for road morphology
             if is_elevated:
                 if actual_rain >= 80.0:
-                    p_depth = round(min(res["water_depth_cm"], 9.5), 1)
-                    p_score = round(min(res["risk_score"], 48.0), 1)
+                    p_depth = round(min(res["water_depth_cm"], 4.5), 1)
+                    p_score = round(min(res["risk_score"], 45.0), 1)
                 elif actual_rain >= 50.0:
-                    p_depth = round(min(res["water_depth_cm"], 3.5), 1)
-                    p_score = round(min(res["risk_score"], 32.0), 1)
+                    p_depth = round(min(res["water_depth_cm"], 2.5), 1)
+                    p_score = round(min(res["risk_score"], 30.0), 1)
                 else:
-                    p_depth = round(min(res["water_depth_cm"], 1.5), 1)
-                    p_score = round(min(res["risk_score"], 22.0), 1)
+                    p_depth = round(min(res["water_depth_cm"], 1.0), 1)
+                    p_score = round(min(res["risk_score"], 20.0), 1)
             elif not is_depression:
                 p_depth = round(min(res["water_depth_cm"] * 1.5, 8.0 if actual_rain < 50 else 18.5), 1)
                 p_score = round(min(res["risk_score"], 48.0 if actual_rain < 50 else 72.0), 1)
@@ -896,9 +1233,23 @@ def calculate_flood_routes(
             pt_depths.append(p_depth)
             pt_details.append(res)
 
+            if p_depth > 15.0 or p_score >= 65.0:
+                high_risk_pts.append({
+                    "location_name": drain.get("nearest_drain_name") or f"Choke Point ({round(lat, 4)}, {round(lon, 4)})",
+                    "coordinates": [round(lat, 5), round(lon, 5)],
+                    "water_depth_cm": p_depth,
+                    "risk_score": p_score,
+                    "risk_level": "CRITICAL" if p_depth > 25.0 or p_score >= 80.0 else "HIGH",
+                    "elevation_m": elev,
+                    "slope_percent": slope,
+                    "drainage_deficit_mm_hr": deficit,
+                    "hazard_description": f"Ponding up to {p_depth} cm (DEM elevation: {elev}m MSL, Drainage deficit: {deficit} mm/hr)."
+                })
+
         max_d = round(max(pt_depths), 1) if pt_depths else 0.0
         avg_d = round(sum(pt_depths) / len(pt_depths), 1) if pt_depths else 0.0
         route_score = round(0.65 * max(pt_scores) + 0.35 * (sum(pt_scores) / len(pt_scores)), 1) if pt_scores else 0.0
+        num_high_risk = len(high_risk_pts)
 
         # Segment-Level Flood Safety Enforcement:
         # A route CANNOT be SAFE/GREEN if ANY segment has depth > 15 cm or score >= 65, or crosses inundated hotspots
@@ -928,8 +1279,8 @@ def calculate_flood_routes(
             badge = f"✅ SAFE: {max_d} cm depth (Passable)"
             reason = f"Minimal hydrodynamic risk ({route_score}/100). Roadway has 0–{max_d} cm surface water; 100% passable with zero submerged choke points."
 
-        # Penalty score balances risk, depth, and travel time
-        penalty = (route_score * 1.5) + (max_d * 2.0) + (cand["estimated_duration_min"] * 0.6)
+        # Penalty score balances risk, depth, high-risk points, and travel time
+        penalty = (cand["estimated_duration_min"] * 1.0) + (route_score * 1.2) + (max_d * 2.0) + (num_high_risk * 10.0)
 
         # Calculate average ML score if available across route waypoints
         valid_ml_pts = [p["ml_score"] for p in pt_details if p.get("ml_score") is not None]
@@ -958,34 +1309,161 @@ def calculate_flood_routes(
             "stroke_style": "dashed" if category == "DANGER" else "solid",
             "badge": badge,
             "reason": reason,
-            "advisory": f"Evaluated under {actual_rain} mm/hr rainfall. Risk score: {route_score}/100.",
+            "advisory": f"Evaluated under {actual_rain} mm/hr rainfall. Modelled risk score: {route_score}/100.",
             "hotspot_keys": cand.get("hotspot_keys", []),
+            "flood_risk_score": route_score,
+            "flood_risk_level": level,
+            "num_high_risk_sections": num_high_risk,
+            "major_risk_locations": high_risk_pts[:4],
+            "provenance_label": "HYDROLENS_MODELLED_RISK (RiskEngine physics + Copernicus DEM + OSM Drainage)",
             "_penalty": penalty
         })
 
     # 6. Determine Practical Recommendation & Check Safe Route Availability
     has_safe_route = any(r["risk_category"] == "SAFE" for r in evaluated_routes)
-    no_safe_warning = None if has_safe_route else "No safe route currently available. All corridors exceed safe flood thresholds under current rainfall conditions. Travel is not advised."
+    no_safe_warning = None if has_safe_route else f"No safe route currently available. All corridors exceed safe flood thresholds under current rainfall conditions ({actual_rain} mm/hr). Travel is not advised."
 
-    best_candidate = min(evaluated_routes, key=lambda r: r["_penalty"])
+    # Identify normal (shortest) route and flood-aware safest route
+    normal_candidate = min(evaluated_routes, key=lambda r: (r["distance_km"], r["estimated_duration_min"]))
+    safest_candidate = min(evaluated_routes, key=lambda r: r["_penalty"])
+
+    has_alternatives = len(evaluated_routes) > 1
+
     for r in evaluated_routes:
-        if r["id"] == best_candidate["id"]:
+        is_safest = (r["id"] == safest_candidate["id"])
+        is_normal = (r["id"] == normal_candidate["id"])
+
+        if not has_alternatives:
+            r["route_type"] = "single_available"
+            r["route_type_label"] = "Single Available Corridor"
             r["is_recommended"] = True
-            if has_safe_route:
-                r["recommendation_badge"] = "⭐ RECOMMENDED ROUTE"
-                r["recommendation_reason"] = f"Recommended safe corridor. Best balance of low flood risk ({r['risk_score']}/100), minimal water depth ({r['max_water_depth_cm']} cm), and travel time ({r['estimated_duration_min']} min)."
-            else:
-                r["recommendation_badge"] = "⚠️ LEAST HAZARDOUS ROUTE"
-                r["recommendation_reason"] = f"Caution: No completely safe route is available. This corridor has the lowest relative hazard ({r['risk_score']}/100, {r['max_water_depth_cm']} cm max depth), but travel should be avoided if possible."
+            r["recommendation_badge"] = "ℹ️ EVALUATED CORRIDOR"
+            r["recommendation_reason"] = f"Only one practical road route was returned by the road network. Evaluated with {r['max_water_depth_cm']} cm max depth and {r['risk_score']}/100 flood risk."
         else:
-            r["is_recommended"] = False
-            r["recommendation_badge"] = None
-            r["recommendation_reason"] = None
+            if is_safest and is_normal:
+                r["route_type"] = "shortest_and_safest"
+                r["route_type_label"] = "Shortest & Safest Route"
+                r["is_recommended"] = True
+                r["recommendation_badge"] = "⭐ BEST OVERALL ROUTE"
+                r["recommendation_reason"] = f"Optimal choice: both the shortest distance ({r['distance_km']} km) and the safest flood exposure ({r['risk_score']}/100, {r['max_water_depth_cm']} cm depth)."
+            elif is_safest:
+                r["route_type"] = "flood_aware_safest"
+                r["route_type_label"] = "Flood-Aware Safest Route"
+                r["is_recommended"] = True
+                if has_safe_route:
+                    r["recommendation_badge"] = "⭐ RECOMMENDED ROUTE"
+                    r["recommendation_reason"] = f"Recommended safe corridor. Safest option avoiding flood choke points ({r['risk_score']}/100, {r['max_water_depth_cm']} cm depth, {r['num_high_risk_sections']} high-risk points)."
+                else:
+                    r["recommendation_badge"] = "⚠️ LEAST HAZARDOUS ROUTE"
+                    r["recommendation_reason"] = f"Caution: No completely safe route is available under {actual_rain} mm/hr rainfall. This corridor has the lowest relative hazard ({r['risk_score']}/100, {r['max_water_depth_cm']} cm depth), but travel should be avoided if possible."
+            elif is_normal:
+                r["route_type"] = "shortest_normal"
+                r["route_type_label"] = "Shortest / Normal Route"
+                r["is_recommended"] = False
+                r["recommendation_badge"] = "⚡ SHORTEST / UNPROTECTED"
+                r["recommendation_reason"] = f"Fastest/shortest corridor without flood avoidance ({r['distance_km']} km), but exhibits higher flood risk ({r['risk_score']}/100, {r['max_water_depth_cm']} cm max depth)."
+            else:
+                r["route_type"] = "alternative"
+                r["route_type_label"] = "Alternative Corridor"
+                r["is_recommended"] = False
+                r["recommendation_badge"] = None
+                r["recommendation_reason"] = None
+
         r.pop("_penalty", None)
 
+    # Build comparison object
+    if has_alternatives:
+        risk_diff = round(normal_candidate["risk_score"] - safest_candidate["risk_score"], 1)
+        depth_diff = round(max(0.0, normal_candidate["max_water_depth_cm"] - safest_candidate["max_water_depth_cm"]), 1)
+        extra_dist = round(max(0.0, safest_candidate["distance_km"] - normal_candidate["distance_km"]), 1)
+        extra_time = max(0, safest_candidate["estimated_duration_min"] - normal_candidate["estimated_duration_min"])
+
+        if safest_candidate["id"] == normal_candidate["id"]:
+            rec_summary = f"The shortest route ({normal_candidate['name']}) is also the safest available path with minimal flood exposure."
+        else:
+            rec_summary = f"Flood-aware routing recommends {safest_candidate['name']}: reduces flood risk by {risk_diff} points and water depth by {depth_diff} cm with {extra_dist} km (~{extra_time} min) detour."
+
+        route_comparison = {
+            "has_alternatives": True,
+            "alternatives_count": len(evaluated_routes),
+            "alternative_status": "Multiple road corridors evaluated",
+            "normal_route": {
+                "id": normal_candidate["id"],
+                "name": normal_candidate["name"],
+                "distance_km": normal_candidate["distance_km"],
+                "estimated_duration_min": normal_candidate["estimated_duration_min"],
+                "flood_risk_score": normal_candidate["risk_score"],
+                "flood_risk_level": normal_candidate["risk_level"],
+                "max_water_depth_cm": normal_candidate["max_water_depth_cm"],
+                "num_high_risk_sections": normal_candidate["num_high_risk_sections"],
+                "risk_category": normal_candidate["risk_category"]
+            },
+            "safest_route": {
+                "id": safest_candidate["id"],
+                "name": safest_candidate["name"],
+                "distance_km": safest_candidate["distance_km"],
+                "estimated_duration_min": safest_candidate["estimated_duration_min"],
+                "flood_risk_score": safest_candidate["risk_score"],
+                "flood_risk_level": safest_candidate["risk_level"],
+                "max_water_depth_cm": safest_candidate["max_water_depth_cm"],
+                "num_high_risk_sections": safest_candidate["num_high_risk_sections"],
+                "risk_category": safest_candidate["risk_category"]
+            },
+            "flood_risk_reduction": risk_diff,
+            "risk_reduction_score": risk_diff,
+            "water_depth_reduction_cm": depth_diff,
+            "depth_reduction_cm": depth_diff,
+            "additional_distance_km": extra_dist,
+            "extra_distance_km": extra_dist,
+            "additional_duration_min": extra_time,
+            "extra_duration_min": extra_time,
+            "shortest_route_name": normal_candidate["name"],
+            "safest_route_name": safest_candidate["name"],
+            "recommendation_summary": rec_summary
+        }
+    else:
+        route_comparison = {
+            "has_alternatives": False,
+            "alternatives_count": 1,
+            "alternative_status": "OSRM provided only one practical road route for this origin-destination pair. No safer alternative corridor is currently available.",
+            "normal_route": {
+                "id": normal_candidate["id"],
+                "name": normal_candidate["name"],
+                "distance_km": normal_candidate["distance_km"],
+                "estimated_duration_min": normal_candidate["estimated_duration_min"],
+                "flood_risk_score": normal_candidate["risk_score"],
+                "flood_risk_level": normal_candidate["risk_level"],
+                "max_water_depth_cm": normal_candidate["max_water_depth_cm"],
+                "num_high_risk_sections": normal_candidate["num_high_risk_sections"],
+                "risk_category": normal_candidate["risk_category"]
+            },
+            "safest_route": {
+                "id": normal_candidate["id"],
+                "name": normal_candidate["name"],
+                "distance_km": normal_candidate["distance_km"],
+                "estimated_duration_min": normal_candidate["estimated_duration_min"],
+                "flood_risk_score": normal_candidate["risk_score"],
+                "flood_risk_level": normal_candidate["risk_level"],
+                "max_water_depth_cm": normal_candidate["max_water_depth_cm"],
+                "num_high_risk_sections": normal_candidate["num_high_risk_sections"],
+                "risk_category": normal_candidate["risk_category"]
+            },
+            "flood_risk_reduction": 0.0,
+            "risk_reduction_score": 0.0,
+            "water_depth_reduction_cm": 0.0,
+            "depth_reduction_cm": 0.0,
+            "additional_distance_km": 0.0,
+            "extra_distance_km": 0.0,
+            "additional_duration_min": 0,
+            "extra_duration_min": 0,
+            "shortest_route_name": normal_candidate["name"],
+            "safest_route_name": normal_candidate["name"],
+            "recommendation_summary": "Single practical road route available. No alternative was found to compare."
+        }
+
     # Pointers for backward compatibility
-    safest_route_obj = evaluated_routes[0]
-    danger_route_obj = evaluated_routes[-1]
+    safest_route_obj = safest_candidate
+    danger_route_obj = max(evaluated_routes, key=lambda r: (r["max_water_depth_cm"], r["risk_score"]))
     hazard_points = [h for h in active_hotspots if h["name"] in danger_route_obj.get("hotspot_keys", [])]
     danger_route_obj["hazard_points"] = hazard_points
 
@@ -999,6 +1477,7 @@ def calculate_flood_routes(
             "origin_coords": {"lat": actual_o_lat, "lon": actual_o_lon},
             "dest_coords": {"lat": actual_d_lat, "lon": actual_d_lon},
             "rainfall_mm_hr": actual_rain,
+            "blockage_pct": float(blockage_pct) if blockage_pct is not None else None,
             "is_live_weather": is_live,
             "weather_source": weather_source,
             "weather_condition": weather_condition,
@@ -1010,17 +1489,23 @@ def calculate_flood_routes(
             "scenario": scenario_meta,
             "historical_flood_depth_ground_truth": scenario_meta.get("historical_flood_depth_ground_truth", "NOT APPLICABLE (Live)") if scenario_meta else "NOT APPLICABLE (Live)",
             "validation_status": scenario_meta.get("validation_status", "Operational real-time flood estimation.") if scenario_meta else "Operational real-time flood estimation.",
-            "accuracy_percentage": None
+            "accuracy_percentage": None,
+            "provenance_disclosure": "HYDROLENS_MODELLED_RISK: Route flood exposure is computed via active RiskEngine physics, Copernicus GLO-30 DEM elevation/slope, and OSM drainage capacity. It represents modelled inundation risk, not measured road sensor telemetry."
         },
         "is_arrived": is_arrived,
         "dist_to_dest_m": dist_to_dest_m,
         "safe_route_available": has_safe_route,
         "no_safe_route_warning": no_safe_warning,
         "routes": evaluated_routes,
-        "recommended_route_id": best_candidate["id"],
-        "recommendation_reason": best_candidate.get("recommendation_reason", "Lowest flood risk corridor."),
+        "route_comparison": route_comparison,
+        "provenance_label": "HYDROLENS Modelled Risk (Copernicus DEM + OSM Drainage)",
+        "recommended_route_id": safest_candidate["id"],
+        "recommendation_reason": safest_candidate.get("recommendation_reason", "Lowest flood risk corridor."),
         "safe_route": {
+            "id": safest_route_obj["id"],
             "name": safest_route_obj["name"],
+            "route_type": safest_route_obj.get("route_type"),
+            "route_type_label": safest_route_obj.get("route_type_label"),
             "color": safest_route_obj["color"],
             "stroke_style": safest_route_obj["stroke_style"],
             "status": safest_route_obj["risk_category"],
@@ -1034,10 +1519,16 @@ def calculate_flood_routes(
             "clearance": safest_route_obj["reason"],
             "advisory": safest_route_obj["advisory"],
             "coordinates": safest_route_obj["coordinates"],
-            "badge": safest_route_obj["badge"]
+            "badge": safest_route_obj["badge"],
+            "num_high_risk_sections": safest_route_obj.get("num_high_risk_sections", 0),
+            "major_risk_locations": safest_route_obj.get("major_risk_locations", []),
+            "provenance_label": safest_route_obj.get("provenance_label")
         },
         "danger_route": {
+            "id": danger_route_obj["id"],
             "name": danger_route_obj["name"],
+            "route_type": danger_route_obj.get("route_type"),
+            "route_type_label": danger_route_obj.get("route_type_label"),
             "color": danger_route_obj["color"],
             "stroke_style": danger_route_obj["stroke_style"],
             "status": danger_route_obj["risk_category"],
@@ -1051,13 +1542,17 @@ def calculate_flood_routes(
             "advisory": danger_route_obj["advisory"],
             "coordinates": danger_route_obj["coordinates"],
             "badge": danger_route_obj["badge"],
-            "hazard_points": hazard_points
+            "hazard_points": hazard_points,
+            "num_high_risk_sections": danger_route_obj.get("num_high_risk_sections", 0),
+            "major_risk_locations": danger_route_obj.get("major_risk_locations", []),
+            "provenance_label": danger_route_obj.get("provenance_label")
         },
         "active_flood_hotspots": active_hotspots
     }
 
 
 @router.get("/routing/safe-route", response_model=Dict[str, Any])
+@router.get("/risk/safe-route", response_model=Dict[str, Any])
 async def get_safe_route(
     origin: str = Query("Hindmata, Mumbai", description="Origin name or address"),
     destination: str = Query("Kurla, Mumbai", description="Destination name or address"),
@@ -1066,6 +1561,7 @@ async def get_safe_route(
     dest_lat: Optional[float] = Query(None, ge=-90.0, le=90.0),
     dest_lon: Optional[float] = Query(None, ge=-180.0, le=180.0),
     rainfall_mm_hr: Optional[float] = Query(None, ge=0.0, le=300.0, description="Optional override. If omitted, uses LIVE weather."),
+    blockage_pct: Optional[float] = Query(None, ge=0.0, le=100.0, description="Optional drainage blockage percentage override."),
     force_refresh: bool = Query(False, description="Force fresh live weather fetch"),
     scenario_id: Optional[str] = Query(None, description="Authoritative historical scenario ID: '2005_deluge' or '2017_flood'"),
     timestep: Optional[str] = Query(None, description="Timestep: 'peak_burst', 'daily_average', 'sustained_deluge'")
@@ -1083,6 +1579,7 @@ async def get_safe_route(
             d_lat=dest_lat,
             d_lon=dest_lon,
             rain=rainfall_mm_hr,
+            blockage_pct=blockage_pct,
             force_refresh=force_refresh,
             scenario_id=scenario_id,
             timestep=timestep
@@ -1094,6 +1591,7 @@ async def get_safe_route(
 
 
 @router.post("/routing/safe-route", response_model=Dict[str, Any])
+@router.post("/risk/safe-route", response_model=Dict[str, Any])
 async def post_safe_route(request: RouteCalculationRequest):
     """
     Compute live flood-evaluated routes via POST body with optional historical scenario replay.
@@ -1107,10 +1605,15 @@ async def post_safe_route(request: RouteCalculationRequest):
             d_lat=request.dest_lat,
             d_lon=request.dest_lon,
             rain=request.rainfall_mm_hr,
+            blockage_pct=request.blockage_pct,
             force_refresh=request.force_refresh or False,
             scenario_id=request.scenario_id,
             timestep=request.timestep
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Route calculation failed: {str(e)}")
     except HTTPException:
         raise
     except Exception as e:
