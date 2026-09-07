@@ -107,7 +107,7 @@ Place in the right column:
 - Explainable factors: heavy rainfall (45 mm/hr), partial drain blockage (45%), flat lowland terrain, nearest drain 160 m away.
 - Data provenance rows:
   - Rainfall: LIVE · Open-Meteo API
-  - Terrain: OBSERVED · CartoDEM 30m
+  - Terrain: OBSERVED · Copernicus GLO-30 DEM 30m (Fallback: Default Urban Baseline)
   - Drainage: ESTIMATED · OSM proximity model
 - Use an info tooltip and disclaimer: “Drainage capacity is estimated from OSM channel proximity and baseline hydrology; it is not official municipal telemetry.”
 

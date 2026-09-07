@@ -1630,7 +1630,9 @@ let homeState = {
   selectedRouteId: null,
   activeReplayMode: "live", // "live", "2005_deluge", "2017_flood"
   activeTimestep: "peak_burst", // "peak_burst", "daily_average", "sustained_deluge"
-  activeReplayRainfall: null
+  activeReplayRainfall: null,
+  nowcastData: null,
+  selectedNowcastHour: 0
 };
 
 let navState = {
@@ -3293,7 +3295,7 @@ function renderHome(){
             <div class="info-grid">
               <div class="info-item"><div class="info-label">Location</div><div class="info-value">${homeState.area}, ${homeState.city}</div></div>
               <div class="info-item"><div class="info-label">Rainfall</div><div class="info-value" id="locDetailRainfallVal">${homeState.activeReplayMode !== 'live' && homeState.activeReplayRainfall ? homeState.activeReplayRainfall : areaInfo.rainfall}</div></div>
-              <div class="info-item"><div class="info-label">Predicted water depth</div><div class="info-value">${areaInfo.depth}</div></div>
+              <div class="info-item"><div class="info-label">Predicted water depth</div><div class="info-value" id="locDetailWaterDepthVal">${areaInfo.depth}</div></div>
               <div class="info-item"><div class="info-label">Flood severity</div><div class="info-value">${severityPillHTML(areaInfo.severity)}</div></div>
               <div class="info-item"><div class="info-label">Forecast horizon</div><div class="info-value">${areaInfo.horizon}</div></div>
               <div class="info-item"><div class="info-label">Drainage status</div><div class="info-value">${areaInfo.drainage}</div></div>
@@ -3312,6 +3314,61 @@ function renderHome(){
                 <em>Historical rainfall replay implemented; historical flood-depth validation dataset unavailable.</em>
               </div>
             ` : ''}
+          </div>
+
+          <!-- 0–3 HOUR URBAN FLOOD NOWCAST SECTION -->
+          <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--border);" id="nowcastSection">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:0.8rem;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:5px;">
+                <span>⏱️</span> 0–3h Flood Nowcast
+              </span>
+              <span id="nowcastProvBadge" style="font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">
+                Live Open-Meteo
+              </span>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">
+              Weather-forecast-driven nowcasting (numerical weather prediction + HYDROLENS mass balance).
+            </div>
+
+            <!-- 4 Timeline Lead Time Buttons (T+0, T+1, T+2, T+3) -->
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:4px;margin-bottom:10px;" id="nowcastButtonsGrid">
+              <button type="button" class="nowcast-btn" data-hour="0" onclick="selectNowcastHour(0)" style="padding:5px 2px;font-size:0.72rem;font-weight:700;border-radius:6px;border:1.5px solid #2563EB;background:#EFF6FF;color:#1D4ED8;cursor:pointer;text-align:center;">
+                NOW<br><span style="font-size:0.65rem;font-weight:500;">T+0</span>
+              </button>
+              <button type="button" class="nowcast-btn" data-hour="1" onclick="selectNowcastHour(1)" style="padding:5px 2px;font-size:0.72rem;font-weight:700;border-radius:6px;border:1px solid #E5E7EB;background:#F9FAFB;color:#4B5563;cursor:pointer;text-align:center;">
+                +1 HR<br><span style="font-size:0.65rem;font-weight:500;">T+1h</span>
+              </button>
+              <button type="button" class="nowcast-btn" data-hour="2" onclick="selectNowcastHour(2)" style="padding:5px 2px;font-size:0.72rem;font-weight:700;border-radius:6px;border:1px solid #E5E7EB;background:#F9FAFB;color:#4B5563;cursor:pointer;text-align:center;">
+                +2 HRS<br><span style="font-size:0.65rem;font-weight:500;">T+2h</span>
+              </button>
+              <button type="button" class="nowcast-btn" data-hour="3" onclick="selectNowcastHour(3)" style="padding:5px 2px;font-size:0.72rem;font-weight:700;border-radius:6px;border:1px solid #E5E7EB;background:#F9FAFB;color:#4B5563;cursor:pointer;text-align:center;">
+                +3 HRS<br><span style="font-size:0.65rem;font-weight:500;">T+3h</span>
+              </button>
+            </div>
+
+            <!-- Active Step Detailed Metrics -->
+            <div id="nowcastStepDetails" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:8px;font-size:0.74rem;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span style="color:#64748B;">Predicted Rain:</span>
+                <span style="font-weight:700;color:#0F172A;" id="ncRainVal">-- mm/hr</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span style="color:#64748B;">Hourly Runoff Excess:</span>
+                <span style="font-weight:700;color:#0F172A;" id="ncHourlyDepthVal">-- cm</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span style="color:#64748B;">Cumulative Water Depth:</span>
+                <span style="font-weight:700;color:#0F172A;" id="ncCumDepthVal">-- cm</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span style="color:#64748B;">Projected Flood Risk:</span>
+                <span style="font-weight:700;" id="ncRiskBadge">--</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding-top:4px;border-top:1px dashed #E2E8F0;font-size:0.7rem;color:#64748B;">
+                <span>DEM Terrain:</span>
+                <span id="ncTerrainVal">Elevation --m | Slope --%</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -3779,6 +3836,45 @@ function renderRouteResult(){
       </div>
     ` : ''}
 
+    ${r.route_comparison ? `
+      <!-- ROUTE COMPARISON & FLOOD OPTIMIZATION CARD -->
+      <div style="margin-top:var(--space-3);background:${r.route_comparison.has_alternatives ? '#F0FDF4' : '#F8FAFC'};border:1.5px solid ${r.route_comparison.has_alternatives ? '#86EFAC' : '#CBD5E1'};border-radius:var(--radius-sm);padding:12px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div style="font-weight:800;font-size:0.92rem;color:${r.route_comparison.has_alternatives ? '#166534' : '#334155'};display:flex;align-items:center;gap:6px;">
+            <span>${r.route_comparison.has_alternatives ? '🛡️' : '🛣️'}</span>
+            <span>${r.route_comparison.has_alternatives ? 'Normal vs Flood-Aware Safest Route Analysis' : 'Single Direct Road Corridor'}</span>
+          </div>
+          <div style="font-size:0.72rem;color:#475569;background:white;padding:2px 8px;border-radius:10px;border:1px solid #E2E8F0;font-weight:600;">
+            ${r.provenance_label || 'HYDROLENS Modelled Risk (Copernicus DEM + OSM Drainage)'}
+          </div>
+        </div>
+
+        ${r.route_comparison.has_alternatives ? `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;font-size:0.82rem;margin-top:8px;">
+            <div style="background:white;padding:8px 10px;border-radius:4px;border:1px solid #DCFCE7;">
+              <div style="color:#64748B;font-size:0.74rem;">Risk Reduction</div>
+              <div style="font-weight:800;color:#16A34A;font-size:1.0rem;">-${r.route_comparison.risk_reduction_score} pts</div>
+            </div>
+            <div style="background:white;padding:8px 10px;border-radius:4px;border:1px solid #DCFCE7;">
+              <div style="color:#64748B;font-size:0.74rem;">Water Depth Reduction</div>
+              <div style="font-weight:800;color:#16A34A;font-size:1.0rem;">-${r.route_comparison.depth_reduction_cm} cm</div>
+            </div>
+            <div style="background:white;padding:8px 10px;border-radius:4px;border:1px solid #DCFCE7;">
+              <div style="color:#64748B;font-size:0.74rem;">Travel Time / Distance Trade-off</div>
+              <div style="font-weight:700;color:#0F172A;font-size:0.88rem;">+${r.route_comparison.extra_duration_min} min (${r.route_comparison.extra_distance_km > 0 ? '+' : ''}${r.route_comparison.extra_distance_km} km)</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:0.80rem;color:#15803D;line-height:1.45;font-weight:600;">
+            ${r.route_comparison.recommendation_summary}
+          </div>
+        ` : `
+          <div style="font-size:0.82rem;color:#475569;line-height:1.45;">
+            ${r.route_comparison.recommendation_summary || 'Single practical road corridor returned by OpenStreetMap / OSRM. No alternative bypass corridor is available in the road network.'}
+          </div>
+        `}
+      </div>
+    ` : ''}
+
     <!-- ALL CANDIDATE ROUTES SIDE-BY-SIDE -->
     <div class="route-result" style="margin-top:var(--space-4);display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:var(--space-4);">
       ${candidateRoutes.map(cand => {
@@ -3804,6 +3900,11 @@ function renderRouteResult(){
               </div>
 
               <div style="margin-bottom:var(--space-3);">
+                ${cand.route_type_label ? `
+                  <div style="font-size:0.72rem;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">
+                    ${cand.route_type_label}
+                  </div>
+                ` : ''}
                 <h4 style="color:#0F172A;font-size:1.02rem;display:flex;align-items:flex-start;gap:8px;margin:0 0 4px 0;line-height:1.3;">
                   <span style="width:14px;height:14px;border-radius:50%;background:${cColor};display:inline-block;flex-shrink:0;margin-top:3px;"></span>
                   ${cand.name}
@@ -3826,12 +3927,24 @@ function renderRouteResult(){
                 <span style="font-weight:800;color:${cColor};font-size:0.9rem;">${cand.risk_score} / 100 (${cand.risk_level})</span>
               </div>
               <div class="route-line" style="padding:4px 0;border-bottom:1px solid #F1F5F9;">
-                <span style="color:#475569;font-size:0.85rem;">Calibration Model:</span>
-                <span style="font-weight:700;color:#0F172A;font-size:0.78rem;">${cand.calibration_mode === 'ml_calibrated' ? '70% Physics + 30% ML' : 'Physics Fallback (Untrained ML)'}</span>
+                <span style="color:#475569;font-size:0.85rem;">High-Risk Sections:</span>
+                <span style="font-weight:700;color:${(cand.num_high_risk_sections || 0) > 0 ? '#DC2626' : '#16A34A'};font-size:0.85rem;">
+                  ${cand.num_high_risk_sections !== undefined ? `${cand.num_high_risk_sections} section(s)` : '0 sections'}
+                  ${cand.num_sampled_points ? `<span style="font-size:0.72rem;color:#64748B;font-weight:normal;"> (${cand.num_sampled_points} sampled)</span>` : ''}
+                </span>
+              </div>
+              <div class="route-line" style="padding:4px 0;border-bottom:1px solid #F1F5F9;">
+                <span style="color:#475569;font-size:0.85rem;">Engine / Model:</span>
+                <span style="font-weight:700;color:#0F172A;font-size:0.78rem;">HYDROLENS + CartoDEM + OSM Drainage</span>
               </div>
 
               <div style="margin-top:var(--space-3);font-size:0.8rem;background:#F8FAFC;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid #E2E8F0;color:#334155;line-height:1.4;">
                 <strong>Corridor Analysis:</strong> ${cand.reason || cand.advisory}
+              </div>
+
+              <div style="margin-top:6px;font-size:0.68rem;color:#64748B;display:flex;align-items:center;gap:4px;">
+                <span>🌐</span>
+                <span>${cand.provenance_label || 'HYDROLENS Modelled Risk (Copernicus DEM + OSM Drainage)'}</span>
               </div>
             </div>
 
@@ -4337,10 +4450,11 @@ let sim = {
 };
 
 const PRESETS = {
-  "Normal Rain": {rainfall:20, duration:30, blockage:0},
-  "Heavy Rain": {rainfall:55, duration:60, blockage:10},
-  "Extreme Rain": {rainfall:85, duration:90, blockage:15},
-  "Heavy Rain + Drain Blockage": {rainfall:60, duration:75, blockage:60},
+  "50 mm/hr (Heavy Rain)": {rainfall:50, duration:60, blockage:20},
+  "80 mm/hr (Severe Rain)": {rainfall:80, duration:60, blockage:25},
+  "120 mm/hr (Cloudburst)": {rainfall:120, duration:90, blockage:30},
+  "Normal Rain (20 mm/hr)": {rainfall:20, duration:30, blockage:0},
+  "Heavy + Blocked Drain": {rainfall:60, duration:75, blockage:60},
   "Mumbai 2005 Deluge": {rainfall:143.9, duration:180, blockage:50, isHistorical:true},
   "Mumbai 2017 Flood": {rainfall:100.0, duration:120, blockage:40, isHistorical:true}
 };
@@ -4437,46 +4551,64 @@ function updateSliderLabels(){
   if(labels[2]) labels[2].textContent = sim.blockage + "%";
 }
 
-function computeSeverityFromInputs(){
-  const score = sim.rainfall*0.6 + sim.duration*0.15 + sim.blockage*0.5;
-  if(score > 120) return "CRITICAL";
-  if(score > 80) return "HIGH";
-  if(score > 45) return "MODERATE";
-  return "LOW";
-}
-function computeDepthFromInputs(step){
-  const base = (sim.rainfall*0.35 + sim.blockage*0.25);
-  const stepFactor = [0.2,0.5,0.8,1,0.9,0.6][step] || 1;
-  return Math.max(1, Math.round(base*stepFactor));
-}
-
-function runScenario(){
+async function runScenario(){
   sim.computing = true;
   sim.result = null;
   document.getElementById('simResultPanel').innerHTML = `
     <div class="sim-computing">
       <div class="spinner"></div>
-      <div>Computing scenario…</div>
+      <div>Running physical simulation via active RiskEngine…</div>
     </div>
   `;
-  setTimeout(()=>{
+
+  // Look up coordinates from selected city and area
+  let coords = {lat: 19.0182, lon: 72.8455}; // default Hindmata, Mumbai
+  if(CITY_DATA[sim.city] && CITY_DATA[sim.city].areas && CITY_DATA[sim.city].areas[sim.area]){
+    const a = CITY_DATA[sim.city].areas[sim.area];
+    if(a.lat && a.lon) coords = {lat: a.lat, lon: a.lon};
+  }
+
+  try {
+    const durationHours = sim.duration / 60.0;
+    const resp = await fetch(`${API_BASE}/api/v1/risk/simulate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lat: coords.lat,
+        lon: coords.lon,
+        rainfall_mm_hr: sim.rainfall,
+        blockage_pct: sim.blockage,
+        duration_hours: durationHours
+      })
+    });
+
+    if(!resp.ok) {
+      throw new Error(`Simulation API responded with HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
     sim.computing = false;
+    sim.result = data;
     sim.timelineStep = 2; // default to +60 min
-    const severity = computeSeverityFromInputs();
-    sim.result = {
-      severity: severity,
-      depthAt: TIMELINE.map((_,i)=>computeDepthFromInputs(i)),
-      surchargingNodes: sim.blockage > 40 ? 3 : (sim.blockage > 15 ? 1 : 0),
-      floodedSegments: severity==="CRITICAL"?5:severity==="HIGH"?3:severity==="MODERATE"?1:0
-    };
     document.getElementById('simResultPanel').innerHTML = simResultInnerHTML();
     wireSimResultEvents();
-  }, 1200);
+  } catch (err) {
+    console.error("Scenario simulation error:", err);
+    sim.computing = false;
+    document.getElementById('simResultPanel').innerHTML = `
+      <div class="sim-idle" style="padding:var(--space-5);text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:8px;">⚠️</div>
+        <div style="font-weight:700;font-size:1rem;color:var(--text);margin-bottom:6px;">Simulation Backend Offline</div>
+        <p style="max-width:320px;margin:0 auto 14px auto;font-size:0.85rem;color:var(--text-muted);">${err.message || "Failed to reach simulation endpoint."}</p>
+        <button class="btn btn-orange" onclick="runScenario()">Retry Simulation</button>
+      </div>
+    `;
+  }
 }
 
 function simResultInnerHTML(){
   if(sim.computing){
-    return `<div class="sim-computing"><div class="spinner"></div><div>Computing scenario…</div></div>`;
+    return `<div class="sim-computing"><div class="spinner"></div><div>Running physical simulation via active RiskEngine…</div></div>`;
   }
   if(!sim.result){
     return `
@@ -4487,7 +4619,20 @@ function simResultInnerHTML(){
     `;
   }
   const r = sim.result;
-  const depthNow = r.depthAt[sim.timelineStep];
+  const active = r.active_scenario || {};
+  const baseline = r.baseline_scenario || {};
+  const timeline = r.timeline || [];
+  const currentStep = timeline[sim.timelineStep] || {
+    water_depth_cm: active.water_depth_cm || 0,
+    risk_level: active.risk_level || "LOW",
+    color_code: active.color_code || "#22c55e",
+    risk_score: active.risk_score || 0
+  };
+  const depthNow = currentStep.water_depth_cm;
+  const levelNow = currentStep.risk_level;
+  const colorNow = currentStep.color_code;
+  const scoreNow = currentStep.risk_score !== undefined ? currentStep.risk_score : active.risk_score;
+
   return `
     <div class="panel-pad">
       <div class="flex-between" style="margin-bottom:var(--space-3);">
@@ -4496,7 +4641,7 @@ function simResultInnerHTML(){
       </div>
 
       <div style="height:230px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);">
-        ${mockMapSVG({depthLayer:true, roadRiskLayer:true, drainLayer:true, surchargeLayer:r.surchargingNodes>0, severity: severityForDepth(depthNow)})}
+        ${mockMapSVG({depthLayer:true, roadRiskLayer:true, drainLayer:true, surchargeLayer:active.drainage_deficit_mm_hr>0, severity: levelNow})}
       </div>
 
       <div class="timeline-row">
@@ -4504,21 +4649,79 @@ function simResultInnerHTML(){
       </div>
 
       <div class="sim-stat-grid">
-        <div class="info-item"><div class="info-label">Predicted flood depth</div><div class="info-value">${depthNow} cm</div></div>
-        <div class="info-item"><div class="info-label">Flood severity</div><div class="info-value">${severityPillHTML(severityForDepth(depthNow))}</div></div>
-        <div class="info-item"><div class="info-label">Flooded road segments</div><div class="info-value">${r.floodedSegments}</div></div>
-        <div class="info-item"><div class="info-label">Surcharging nodes</div><div class="info-value">${r.surchargingNodes}</div></div>
+        <div class="info-item">
+          <div class="info-label">Predicted flood depth</div>
+          <div class="info-value">${depthNow} cm <span style="font-size:0.75rem;font-weight:400;color:var(--text-muted);">(${Math.round(depthNow * 10)} mm)</span></div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Flood severity & score</div>
+          <div class="info-value">${severityPillHTML(levelNow)} <span style="font-size:0.80rem;font-weight:700;color:${colorNow};margin-left:4px;">${scoreNow}/100</span></div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Effective drainage</div>
+          <div class="info-value">${active.effective_drainage_mm_hr} mm/hr <span style="font-size:0.72rem;font-weight:400;color:var(--text-muted);display:block;">Base: ${active.base_drainage_mm_hr} mm/hr</span></div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Drainage deficit</div>
+          <div class="info-value" style="color:${active.drainage_deficit_mm_hr > 0 ? 'var(--danger,#dc2626)' : 'var(--success,#16a34a)'};font-weight:800;">${active.drainage_deficit_mm_hr} mm/hr <span style="font-size:0.72rem;font-weight:400;color:var(--text-muted);display:block;">${active.drainage_deficit_mm_hr > 0 ? 'Capacity Exceeded' : 'Adequate Flow'}</span></div>
+        </div>
       </div>
 
       <div class="before-after">
         <div class="ba-card">
           <div class="ba-label">Before — Normal conditions</div>
           <div class="ba-map">${mockMapSVG({depthLayer:true, severity:"LOW"})}</div>
+          <div style="font-size:0.74rem;color:var(--text-muted);padding:5px 8px;background:var(--surface-alt);">
+            Depth: 0.0 cm | Drain: ${baseline.effective_drainage_mm_hr || active.base_drainage_mm_hr} mm/hr
+          </div>
         </div>
         <div class="ba-card">
           <div class="ba-label">After — Scenario at ${TIMELINE[sim.timelineStep]}</div>
-          <div class="ba-map">${mockMapSVG({depthLayer:true, severity: severityForDepth(depthNow)})}</div>
+          <div class="ba-map">${mockMapSVG({depthLayer:true, severity: levelNow})}</div>
+          <div style="font-size:0.74rem;color:var(--text-muted);padding:5px 8px;background:var(--surface-alt);">
+            Depth: ${depthNow} cm | Deficit: ${active.drainage_deficit_mm_hr} mm/hr
+          </div>
         </div>
+      </div>
+
+      <!-- Drainage Blockage Sensitivity Analysis Table -->
+      <div style="margin-top:var(--space-4);background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div style="font-size:0.78rem;font-weight:800;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.03em;">
+          Blockage Sensitivity Breakdown (${sim.rainfall} mm/hr rain)
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;font-size:0.76rem;border-collapse:collapse;text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);color:var(--text-muted);">
+                <th style="padding:4px 6px;">Blockage</th>
+                <th style="padding:4px 6px;">Effective Drain</th>
+                <th style="padding:4px 6px;">Drain Deficit</th>
+                <th style="padding:4px 6px;">Water Depth</th>
+                <th style="padding:4px 6px;">Risk Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(r.scenarios || []).map(s => {
+                const isClosest = Math.abs(s.blockage_pct - sim.blockage) <= 12.5;
+                return `
+                  <tr style="${isClosest ? 'background:rgba(214,146,76,0.18);font-weight:700;' : ''}border-bottom:1px solid var(--border-light,#f1f5f9);">
+                    <td style="padding:5px 6px;">${s.blockage_pct}% ${isClosest ? '◀ (Selected)' : ''}</td>
+                    <td style="padding:5px 6px;">${s.effective_drainage_mm_hr} mm/hr</td>
+                    <td style="padding:5px 6px;color:${s.drainage_deficit_mm_hr > 0 ? '#ef4444' : '#22c55e'};">${s.drainage_deficit_mm_hr} mm/hr</td>
+                    <td style="padding:5px 6px;">${s.water_depth_cm} cm</td>
+                    <td style="padding:5px 6px;"><span style="color:${s.color_code};font-weight:700;">${s.risk_level} (${s.risk_score})</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Physical Terrain & Drainage Context -->
+      <div style="margin-top:var(--space-3);background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:0.76rem;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;">
+        <div><strong>Terrain (Copernicus DEM):</strong> ${active.elevation_m !== undefined ? active.elevation_m + 'm MSL' : 'N/A'}, Slope: ${active.slope_percent !== undefined ? active.slope_percent + '%' : 'N/A'}</div>
+        <div><strong>Drainage Line:</strong> ${active.nearest_drain_name || 'Mapped Drain'} (${active.drain_distance_m !== undefined ? Math.round(active.drain_distance_m) + 'm' : 'Nearby'})</div>
       </div>
 
       ${(PRESETS[sim.preset] && PRESETS[sim.preset].isHistorical) ? `
@@ -4529,17 +4732,10 @@ function simResultInnerHTML(){
       ` : ''}
 
       <div class="sim-disclaimer">
-        This is a modelled what-if scenario based on the parameters you selected. It is not an actual weather forecast and should not be used as the sole basis for safety decisions.
+        This is a deterministic what-if scenario modelled by the active RiskEngine based on real DEM terrain and OSM drainage data. It is not an actual weather forecast and should not be used as the sole basis for safety decisions.
       </div>
     </div>
   `;
-}
-
-function severityForDepth(d){
-  if(d>30) return "CRITICAL";
-  if(d>15) return "HIGH";
-  if(d>=5) return "MODERATE";
-  return "LOW";
 }
 
 function wireSimResultEvents(){
@@ -4928,6 +5124,92 @@ async function fetchLiveRiskExplanation(lat = 19.0760, lon = 72.8777, blockagePc
   return null;
 }
 
+async function fetchLiveRiskForecast(lat = 19.0760, lon = 72.8777, horizon = 3) {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/risk/forecast?lat=${lat}&lon=${lon}&horizon_hours=${horizon}`);
+    if (res.ok) {
+      const data = await res.json();
+      console.log("[Backend Integration] 0-3h Risk Forecast:", data);
+      homeState.nowcastData = data;
+      updateNowcastUI();
+      return data;
+    }
+  } catch (err) {
+    console.warn("[Backend Integration] Risk forecast fallback:", err);
+  }
+  return null;
+}
+
+function selectNowcastHour(hour) {
+  homeState.selectedNowcastHour = hour;
+  updateNowcastUI();
+}
+
+function updateNowcastUI() {
+  const data = homeState.nowcastData;
+  if (!data || !data.forecast) return;
+
+  const hour = homeState.selectedNowcastHour !== undefined ? homeState.selectedNowcastHour : 0;
+  const step = data.forecast.find(f => f.hour === hour) || data.forecast[0];
+  if (!step) return;
+
+  // Update button active state
+  const buttons = document.querySelectorAll(".nowcast-btn");
+  buttons.forEach(btn => {
+    const btnH = parseInt(btn.getAttribute("data-hour"), 10);
+    if (btnH === hour) {
+      btn.style.borderColor = "#2563EB";
+      btn.style.background = "#EFF6FF";
+      btn.style.color = "#1D4ED8";
+    } else {
+      btn.style.borderColor = "#E5E7EB";
+      btn.style.background = "#F9FAFB";
+      btn.style.color = "#4B5563";
+    }
+  });
+
+  // Update Provenance Badge
+  const provBadge = document.getElementById("nowcastProvBadge");
+  if (provBadge && data.data_provenance) {
+    const isReal = data.data_provenance.weather_input === "REAL_FORECAST";
+    provBadge.textContent = isReal ? "🟢 REAL FORECAST" : "🟡 SIMULATED FALLBACK";
+    provBadge.style.background = isReal ? "#EFF6FF" : "#FEF3C7";
+    provBadge.style.color = isReal ? "#1D4ED8" : "#92400E";
+    provBadge.style.borderColor = isReal ? "#BFDBFE" : "#FDE68A";
+  }
+
+  // Update Step Card Values
+  const rainEl = document.getElementById("ncRainVal");
+  if (rainEl) rainEl.textContent = `${step.rainfall_mm_hr} mm/hr`;
+
+  const hourlyDepthEl = document.getElementById("ncHourlyDepthVal");
+  if (hourlyDepthEl) hourlyDepthEl.textContent = `${step.hourly_water_depth_cm} cm`;
+
+  const cumDepthEl = document.getElementById("ncCumDepthVal");
+  if (cumDepthEl) cumDepthEl.textContent = `${step.cumulative_water_depth_cm} cm`;
+
+  const riskBadgeEl = document.getElementById("ncRiskBadge");
+  if (riskBadgeEl) {
+    riskBadgeEl.textContent = `${step.risk_level} (${step.risk_score}/100)`;
+    riskBadgeEl.style.color = step.color_code || "#22c55e";
+  }
+
+  const terrainEl = document.getElementById("ncTerrainVal");
+  if (terrainEl) {
+    const elev = step.elevation_m !== null && step.elevation_m !== undefined ? `${step.elevation_m}m MSL` : "N/A";
+    const slp = step.slope_percent !== null && step.slope_percent !== undefined ? `${step.slope_percent}%` : "N/A";
+    terrainEl.textContent = `Elevation ${elev} | Slope ${slp}`;
+  }
+
+  // If currently in live mode, update Location details values as well
+  if (homeState.activeReplayMode === 'live') {
+    const locRain = document.getElementById("locDetailRainfallVal");
+    if (locRain) locRain.textContent = `${step.rainfall_mm_hr} mm/hr (T+${hour}h)`;
+    const locDepth = document.getElementById("locDetailWaterDepthVal");
+    if (locDepth) locDepth.textContent = `${step.cumulative_water_depth_cm} cm`;
+  }
+}
+
 async function initLeafletMap(containerId, centerLat = 19.0760, centerLon = 72.8777) {
   const container = document.getElementById(containerId);
   if (!container || typeof L === "undefined") return;
@@ -4981,12 +5263,16 @@ if (originalRenderHome) {
   renderHome = function() {
     originalRenderHome();
     setTimeout(() => {
-      initLeafletMap("mapCanvas");
-      fetchLiveWeatherData().then(w => {
+      const area = typeof currentAreaData === "function" ? currentAreaData() : null;
+      const cLat = (area && area.lat) ? area.lat : 19.0760;
+      const cLon = (area && area.lon) ? area.lon : 72.8777;
+      initLeafletMap("mapCanvas", cLat, cLon);
+      fetchLiveWeatherData(cLat, cLon).then(w => {
         if (w && w.rainfall_mm_hr !== undefined) {
           console.log("[Live Update] Current rainfall:", w.rainfall_mm_hr, "mm/hr from", w.source);
         }
       });
+      fetchLiveRiskForecast(cLat, cLon, 3);
     }, 50);
   };
 }

@@ -11,6 +11,7 @@ This module handles:
 5. Strict Data Freshness & Quality Labels (source, timestamp, is_cached, is_mock)
 """
 
+import sys
 import os
 import time
 import requests
@@ -37,6 +38,7 @@ class WeatherService:
         self.owm_api_key = owm_api_key or os.getenv("OPENWEATHER_API_KEY")
         self._cache: Dict[str, WeatherCacheEntry] = {}
         self._forecast_cache: Dict[str, WeatherCacheEntry] = {}
+        self._hourly_forecast_cache: Dict[str, WeatherCacheEntry] = {}
 
     def _get_cache_key(self, lat: float, lon: float) -> str:
         """Round coordinates to ~1km grid for effective caching."""
@@ -190,6 +192,94 @@ class WeatherService:
         result["cache_age_seconds"] = 0.0
         return result
 
+    def _fetch_open_meteo_hourly_forecast(self, lat: float, lon: float, count: int = 4) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch real meteorological hourly precipitation forecast from Open-Meteo API.
+        Extracts up to `count` consecutive hours starting from current hour (T+0).
+        """
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=precipitation,rain&forecast_days=2&timezone=auto"
+        try:
+            res = requests.get(url, timeout=8)
+            if res.status_code == 200:
+                data = res.json()
+                hourly = data.get("hourly", {})
+                times = hourly.get("time", [])
+                precip = hourly.get("precipitation", [])
+
+                if not times or not precip:
+                    return None
+
+                import datetime
+                now_prefix = datetime.datetime.now().strftime("%Y-%m-%dT%H:00")
+                start_idx = 0
+                for i, t in enumerate(times):
+                    if t >= now_prefix:
+                        start_idx = i
+                        break
+
+                forecast_items = []
+                for h in range(count):
+                    idx = start_idx + h
+                    if idx < len(times):
+                        timestamp = times[idx]
+                        rain_val = float(precip[idx]) if idx < len(precip) else 0.0
+                    else:
+                        timestamp = f"T+{h}h"
+                        rain_val = 0.0
+
+                    forecast_items.append({
+                        "hour": h,
+                        "lead_time": "NOW" if h == 0 else f"+{h} HOUR" if h == 1 else f"+{h} HOURS",
+                        "timestamp": timestamp,
+                        "rainfall_mm_hr": max(0.0, round(rain_val, 2)),
+                        "source": "Open-Meteo API (Numerical Weather Model)",
+                        "is_mock": False
+                    })
+                return forecast_items
+        except Exception as e:
+            print(f"[WeatherService] Open-Meteo hourly forecast fetch error: {e}")
+        return None
+
+    def _generate_mock_hourly_forecast(self, lat: float, lon: float, count: int = 4) -> List[Dict[str, Any]]:
+        """
+        Simulated weather forecast fallback when live meteorological APIs are unreachable.
+        """
+        import datetime
+        now_dt = datetime.datetime.now()
+        base_pattern = [35.0, 45.0, 55.0, 30.0]
+        items = []
+        for h in range(count):
+            hour_dt = now_dt + datetime.timedelta(hours=h)
+            rain_val = base_pattern[h % len(base_pattern)]
+            items.append({
+                "hour": h,
+                "lead_time": "NOW" if h == 0 else f"+{h} HOUR" if h == 1 else f"+{h} HOURS",
+                "timestamp": hour_dt.strftime("%Y-%m-%dT%H:00:00Z"),
+                "rainfall_mm_hr": rain_val,
+                "source": "SIMULATED_WEATHER_FALLBACK",
+                "is_mock": True,
+                "disclaimer": "Simulated mock rainfall forecast used because live weather service is unreachable."
+            })
+        return items
+
+    def get_hourly_rainfall_forecast(self, lat: float, lon: float, hours: int = 4, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """
+        Get 0 to (hours-1) lead-time hourly rainfall forecast.
+        Distinguishes real numerical weather prediction vs simulated fallback.
+        """
+        cache_key = f"{self._get_cache_key(lat, lon)}_h{hours}"
+        if not force_refresh and cache_key in self._hourly_forecast_cache:
+            entry = self._hourly_forecast_cache[cache_key]
+            if not entry.is_expired():
+                return [dict(item) for item in entry.data]
+
+        items = self._fetch_open_meteo_hourly_forecast(lat, lon, count=hours)
+        if not items:
+            items = self._generate_mock_hourly_forecast(lat, lon, count=hours)
+
+        self._hourly_forecast_cache[cache_key] = WeatherCacheEntry(items)
+        return [dict(item) for item in items]
+
 
 # Singleton Instance
 _global_weather_service = None
@@ -199,3 +289,9 @@ def get_weather_service(owm_api_key: Optional[str] = None) -> WeatherService:
     if _global_weather_service is None or owm_api_key is not None:
         _global_weather_service = WeatherService(owm_api_key=owm_api_key)
     return _global_weather_service
+
+# Ensure consistent module registration whether imported as 'services.weather_service' or 'backend.services.weather_service'
+if "backend.services.weather_service" in sys.modules and "services.weather_service" not in sys.modules:
+    sys.modules["services.weather_service"] = sys.modules["backend.services.weather_service"]
+elif "services.weather_service" in sys.modules and "backend.services.weather_service" not in sys.modules:
+    sys.modules["backend.services.weather_service"] = sys.modules["services.weather_service"]

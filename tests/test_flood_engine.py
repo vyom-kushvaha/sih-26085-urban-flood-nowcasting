@@ -27,17 +27,19 @@ def test_dem_processor():
     """Verify DEM elevation and slope calculation."""
     dem = get_dem_processor()
     
-    # 1. Fallback check on suspicious coordinates (Mumbai center raw -63m -> safe urban fallback)
-    res_fallback = dem.get_elevation_and_slope(19.0760, 72.8777)
+    # 1. Fallback check on out-of-bounds coordinates
+    res_fallback = dem.get_elevation_and_slope(28.6139, 77.2090)
     assert res_fallback["in_dem_coverage"] is False
     assert res_fallback["elevation_m"] == 15.0
     assert "slope_deg" in res_fallback
     assert "slope_percent" in res_fallback
+    assert res_fallback["is_fallback"] is True
 
     # 2. Observed elevation check on valid positive DEM coverage point
     res_observed = dem.get_elevation_and_slope(19.2, 72.9)
     assert res_observed["in_dem_coverage"] is True
     assert res_observed["elevation_m"] > 0.0
+    assert res_observed["is_fallback"] is False
     print("  [PASS] DEM Processor Test (Safe Fallback + Observed Coverage)")
 
 
@@ -195,7 +197,41 @@ def test_route_safety_critical_depth_not_green_with_ml():
     finally:
         ml_model.model = None
         ml_model.is_trained = False
-    print("  [PASS] Test 6: Safety Constraint Enforced — Critical Flooding Cannot Become Green")
+def test_drainage_deficit_and_blockage_progression():
+    """TEST 7: Drainage deficit calculation and monotonic blockage progression (0% vs 60% vs 100%)."""
+    engine = get_risk_engine()
+
+    res_0 = engine.calculate_risk(lat=19.0600, lon=72.8520, rainfall_mm_hr=45.0, blockage_pct=0.0)
+    res_60 = engine.calculate_risk(lat=19.0600, lon=72.8520, rainfall_mm_hr=45.0, blockage_pct=60.0)
+    res_100 = engine.calculate_risk(lat=19.0600, lon=72.8520, rainfall_mm_hr=45.0, blockage_pct=100.0)
+
+    # 1. Drainage deficit exists in hydrology_metrics and drainage
+    assert "drainage_deficit_mm_hr" in res_0["hydrology_metrics"]
+    assert "drainage_deficit_ratio" in res_0["hydrology_metrics"]
+    assert "base_drainage_mm_hr" in res_0["hydrology_metrics"]
+    assert "drainage_deficit_mm_hr" in res_0["drainage"]
+    assert "provenance" in res_0["drainage"]
+
+    # 2. Monotonic increase in drainage deficit: 0% < 60% < 100%
+    def_0 = res_0["hydrology_metrics"]["drainage_deficit_mm_hr"]
+    def_60 = res_60["hydrology_metrics"]["drainage_deficit_mm_hr"]
+    def_100 = res_100["hydrology_metrics"]["drainage_deficit_mm_hr"]
+    assert def_0 < def_60 < def_100, f"Expected def_0 ({def_0}) < def_60 ({def_60}) < def_100 ({def_100})"
+
+    # 3. Monotonic decrease in effective capacity: 0% > 60% > 100%
+    eff_0 = res_0["hydrology_metrics"]["effective_drainage_mm_hr"]
+    eff_60 = res_60["hydrology_metrics"]["effective_drainage_mm_hr"]
+    eff_100 = res_100["hydrology_metrics"]["effective_drainage_mm_hr"]
+    assert eff_0 > eff_60 > eff_100, f"Expected eff_0 ({eff_0}) > eff_60 ({eff_60}) > eff_100 ({eff_100})"
+    assert eff_100 == 0.0
+
+    # 4. Monotonic increase in water depth: 0% < 60% < 100%
+    assert res_0["water_depth_cm"] < res_60["water_depth_cm"] < res_100["water_depth_cm"]
+
+    # 5. Monotonic increase in risk score: 0% < 60% < 100%
+    assert res_0["risk_score"] < res_60["risk_score"] < res_100["risk_score"]
+
+    print("  [PASS] Test 7: Drainage Deficit & Monotonic Blockage Progression (0% < 60% < 100%) Verified")
 
 
 if __name__ == "__main__":
@@ -209,5 +245,6 @@ if __name__ == "__main__":
     test_ml_feature_vector_structure()
     test_risk_explain_endpoint_hybrid_breakdown()
     test_route_safety_critical_depth_not_green_with_ml()
+    test_drainage_deficit_and_blockage_progression()
     print("\n[SUCCESS] ALL FLOOD ENGINE & HYBRID MODEL VALIDATION TESTS PASSED SUCCESSFULLY!")
 

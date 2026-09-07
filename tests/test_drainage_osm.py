@@ -74,10 +74,62 @@ def test_invalid_geometry_handling():
     print("  [PASS] Test 4: Invalid & Degenerate Geometry Handling")
 
 
+def test_distance_decay_and_density():
+    """Test 5: Continuous distance decay and local network density metrics."""
+    processor = DrainageProcessor()
+    
+    # Point A: Hindmata / BKC close to drain (< 500m)
+    res_near = processor.calculate_effective_capacity(19.0600, 72.8520, blockage_pct=0.0)
+    assert res_near["nearest_drain"]["has_spatial_match"] is True
+    assert "local_density_count_1km" in res_near
+    assert res_near["local_density_count_1km"] > 0
+    assert res_near["distance_decay_factor"] > 0.40
+    
+    # Point B: Very far from major channel
+    res_far = processor.calculate_effective_capacity(19.0, 72.0, blockage_pct=0.0)
+    assert res_far["nearest_drain"]["has_spatial_match"] is False
+    assert res_far["distance_decay_factor"] == 0.40
+    assert res_near["base_capacity_mm_hr"] > res_far["base_capacity_mm_hr"]
+    print("  [PASS] Test 5: Continuous Distance Decay & Network Density Verified")
+
+
+def test_provenance_labels():
+    """Test 6: Transparent data provenance separating REAL_DATA, MODELLED_PARAMETER, SCENARIO."""
+    processor = DrainageProcessor()
+    res = processor.calculate_effective_capacity(19.0600, 72.8520, blockage_pct=40.0)
+    
+    prov = res["provenance"]
+    assert "REAL_DATA" in prov["drainage_geometry"]
+    assert "MODELLED_PARAMETER" in prov["capacity_model"]
+    assert "USER_SUPPLIED_SCENARIO" in prov["scenario_blockage"]
+    assert "40" in prov["scenario_blockage"]
+    assert "not official municipal telemetry" in res["disclaimer"]
+    print("  [PASS] Test 6: Transparent Drainage Provenance Verified")
+
+
+def test_blockage_monotonic_reduction():
+    """Test 7: Effective capacity monotonically decreases as blockage increases from 0% to 100%."""
+    processor = DrainageProcessor()
+    prev_cap = float("inf")
+    blockage_levels = [0.0, 20.0, 40.0, 60.0, 80.0, 100.0]
+    
+    for b in blockage_levels:
+        res = processor.calculate_effective_capacity(19.0760, 72.8777, blockage_pct=b)
+        eff = res["effective_capacity_mm_hr"]
+        assert eff <= prev_cap, f"Expected capacity to decrease or stay equal at blockage {b}%, got {eff} > {prev_cap}"
+        prev_cap = eff
+        
+    assert prev_cap == 0.0, "Effective capacity at 100% blockage must be 0.0"
+    print("  [PASS] Test 7: Blockage Monotonic Reduction Verified")
+
+
 if __name__ == "__main__":
     print("=== RUNNING MUMBAI OSM DRAINAGE UNIT TESTS ===")
     test_mumbai_coordinates_nearest_drain()
     test_blockage_status_thresholds()
     test_overpass_failure_fallback()
     test_invalid_geometry_handling()
-    print("\n[SUCCESS] ALL MUMBAI DRAINAGE UNIT TESTS PASSED SUCCESSFULLY!")
+    test_distance_decay_and_density()
+    test_provenance_labels()
+    test_blockage_monotonic_reduction()
+    print("\n[SUCCESS] ALL 7 MUMBAI DRAINAGE UNIT TESTS PASSED SUCCESSFULLY!")
