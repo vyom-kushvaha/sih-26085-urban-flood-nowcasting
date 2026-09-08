@@ -20,7 +20,7 @@ Produces:
 import os
 import sys
 import math
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # Ensure project root is in sys.path for ml_model and hybrid_model
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
