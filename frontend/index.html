@@ -3279,11 +3279,6 @@ function renderHome(){
             <div class="legend-row"><span class="legend-swatch" style="background:#EF4444;border-radius:50%;"></span>Flood Hotspot (&gt;25 cm depth)</div>
             <div class="legend-row"><span class="legend-swatch" style="background:#0284C7;"></span>Drainage / River Channel</div>
 
-            <div class="legend-title" style="margin-top:8px;padding-top:6px;border-top:1px solid #E5E7EB;">Flood Depth</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#4EA699"></span>Low — &lt;5 cm</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#E6AA68"></span>Moderate — 5–15 cm</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#D36135"></span>High — 15–30 cm</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#C22B2B"></span>Critical — &gt;30 cm</div>
           </div>
         </div>
 
@@ -3384,55 +3379,6 @@ function renderHome(){
               <span class="safe-badge-pill">🟢 Safest</span>
               <span style="background:#FEF3C7;color:#D97706;border:1px solid #FCD34D;font-weight:700;font-size:0.75rem;padding:3px 8px;border-radius:12px;">🟠 Moderate</span>
               <span class="danger-badge-pill">🔴 Dangerous</span>
-            </div>
-          </div>
-
-          <!-- HISTORICAL FLOOD REPLAY SECTION -->
-          <div class="hist-replay-panel" id="histReplayPanel">
-            <div class="hist-replay-header">
-              <div class="hist-replay-title">
-                <span style="font-size:1.25rem;">🏛️</span>
-                <span>Historical Flood Replay</span>
-                <span class="proto-chip" style="font-size:0.68rem;background:#E0F2FE;color:#0369A1;border-color:#BAE6FD;">Benchmark Events</span>
-              </div>
-              <div style="font-size:0.75rem;color:var(--text-muted);">
-                Select an event to replay official deluge rainfall through the hydrodynamic route engine:
-              </div>
-            </div>
-
-            <!-- 3 Main Interactive Buttons -->
-            <div class="hist-buttons-grid">
-              <!-- Button 1: Live OpenWeatherMap -->
-              <div class="hist-btn-card ${homeState.activeReplayMode === 'live' ? 'active' : ''}" id="btnReplayLive" role="button" tabindex="0">
-                <div class="hist-btn-top">
-                  <div class="hist-btn-title">🟢 Live OpenWeatherMap</div>
-                  <span style="font-size:0.68rem;font-weight:800;background:#DBEAFE;color:#1E40AF;padding:2px 6px;border-radius:6px;">LIVE API</span>
-                </div>
-                <div class="hist-btn-sub">Real-time weather API feed with automated hydrodynamic nowcasting</div>
-              </div>
-
-              <!-- Button 2: Mumbai 2005 Deluge -->
-              <div class="hist-btn-card ${homeState.activeReplayMode === '2005_deluge' ? 'active active-deluge' : ''}" id="btnReplay2005" role="button" tabindex="0">
-                <div class="hist-btn-top">
-                  <div class="hist-btn-title">🏛️ Mumbai 2005 Deluge</div>
-                  <span style="font-size:0.68rem;font-weight:800;background:#FEE2E2;color:#991B1B;padding:2px 6px;border-radius:6px;">944.2 mm / 24h</span>
-                </div>
-                <div class="hist-btn-sub">26 July 2005 · IMD MAUSAM Table 7 (143.9 mm/hr peak burst)</div>
-              </div>
-
-              <!-- Button 3: Mumbai 2017 Flood -->
-              <div class="hist-btn-card ${homeState.activeReplayMode === '2017_flood' ? 'active active-flood' : ''}" id="btnReplay2017" role="button" tabindex="0">
-                <div class="hist-btn-top">
-                  <div class="hist-btn-title">🏛️ Mumbai 2017 Flood</div>
-                  <span style="font-size:0.68rem;font-weight:800;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:6px;">331.4 mm / 24h</span>
-                </div>
-                <div class="hist-btn-sub">29 August 2017 · MOSDAC ISRO / IMD (100.0 mm/hr peak AWS burst)</div>
-              </div>
-            </div>
-
-            <!-- Dynamic Details Box: Timestep Controls, Replayed Rainfall, and Honest Disclaimer -->
-            <div id="histReplayDetailsArea">
-              ${renderHistReplayDetailsHTML()}
             </div>
           </div>
 
