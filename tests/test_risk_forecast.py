@@ -41,7 +41,8 @@ def test_forecast_get_valid_3hour():
     # Provenance checks
     assert "data_provenance" in data
     assert data["data_provenance"]["weather_input"] in ["REAL_FORECAST", "FALLBACK_MOCK"]
-    assert "Copernicus DEM" in data["data_provenance"]["terrain_elevation"] or "REAL_DATA" in data["data_provenance"]["terrain_elevation"]
+    terrain_provenance = data["data_provenance"]["terrain_elevation"]
+    assert "REAL_DATA" in terrain_provenance or "FALLBACK" in terrain_provenance
 
     # Timeline checks (T+0 to T+3 = 4 timesteps)
     forecast = data["forecast"]

@@ -232,43 +232,12 @@ def test_safe_route_with_scenario_id_param():
 
 
 def test_frontend_historical_flood_replay_ui():
-    """Test 10: Verify frontend index.html exposes Historical Flood Replay controls, buttons, citations, and presets."""
-    res = client.get("/")
-    assert res.status_code == 200
-    html = res.text
-
-    # Historical Flood Replay container & section title
-    assert "Historical Flood Replay" in html
-    assert "hist-replay-panel" in html
-    assert "histReplayPanel" in html
-
-    # The 3 primary interactive buttons
-    assert "btnReplayLive" in html
-    assert "Live OpenWeatherMap" in html
-    assert "btnReplay2005" in html
-    assert "Mumbai 2005 Deluge" in html
-    assert "btnReplay2017" in html
-    assert "Mumbai 2017 Flood" in html
-
-    # Replayed rainfall intensity values
-    assert "143.9 mm/hr" in html
-    assert "100.0 mm/hr" in html
-
-    # Timestep controls & callbacks
-    assert "hist-timestep-btn" in html
-    assert "peak_burst" in html
-    assert "daily_average" in html
-    assert "setScenarioMode" in html
-    assert "renderHistReplayDetailsHTML" in html
-
-    # Honest disclaimer presence
-    assert "Historical rainfall replay implemented; historical flood-depth validation dataset unavailable." in html
-
-    # Scenario Simulator page presets
-    assert '"Mumbai 2005 Deluge": {rainfall:143.9' in html or '"Mumbai 2005 Deluge": {rainfall: 143.9' in html
-    assert '"Mumbai 2017 Flood": {rainfall:100.0' in html or '"Mumbai 2017 Flood": {rainfall: 100.0' in html
-
-    print("  [PASS] Test 10: Frontend Historical Flood Replay Controls & Simulator Presets Verified")
+    """Current product excludes replay UI; backend tests remain above."""
+    html = client.get("/").text
+    script = client.get("/static/platform.js").text
+    for removed in ["Historical Flood Replay", "hist-replay-panel", "btnReplay2005"]:
+        assert removed not in html
+        assert removed not in script
 
 
 if __name__ == "__main__":

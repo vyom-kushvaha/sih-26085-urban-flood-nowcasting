@@ -202,11 +202,11 @@ def test_dem_and_osm_drainage_provenance_in_simulation():
     res = client.post("/api/v1/risk/simulate", json=payload).json()
     active = res["active_scenario"]
 
-    # Terrain metrics from Copernicus DEM
+    # Terrain fields remain explicit even when datum validation fails closed.
     assert "elevation_m" in active
     assert active["elevation_m"] > 0.0
     assert "slope_percent" in active
-    assert active["dem_status"] in ["REAL_DEM", "DEM_UNAVAILABLE"]
+    assert active["dem_status"] in ["REAL_DEM", "DEM_UNAVAILABLE", "FALLBACK_ANOMALOUS_ELEVATION"]
 
     # Drainage metrics from OSM
     assert "nearest_drain_name" in active

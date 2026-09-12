@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "dataset_id": "replace-with-dataset-id",
+  "raster_path": "replace-with-local-or-mounted-path.tif",
+  "source_organization": "BMC / Survey of India / survey contractor",
+  "license": "replace-with-license-and-redistribution-terms",
+  "acquisition_date": "YYYY-MM-DD",
+  "horizontal_crs": "EPSG:32643",
+  "vertical_datum": "replace-with-explicit-orthometric-datum",
+  "terrain_type": "DTM",
+  "horizontal_resolution_m": 1.0,
+  "claimed_vertical_rmse_m": 0.2,
+  "checkpoint_report": "replace-with-checkpoint-report-path.csv",
+  "processing_history": [
+    "ground classification",
+    "building and vegetation removal",
+    "hydraulic breakline conditioning"
+  ],
+  "redistributable": false,
+  "approved_for_operational_modelling": false
+}

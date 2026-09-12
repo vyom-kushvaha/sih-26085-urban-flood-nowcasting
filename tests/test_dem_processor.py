@@ -69,17 +69,17 @@ def test_3_elevation_extraction():
     """Test 3: Extract elevation at known Mumbai topographical points."""
     dem = get_dem_processor()
 
-    # Hindmata low-lying flood basin (~5m - 12m)
+    # Coastal CartoDEM values are WGS84 ellipsoidal heights. Until a validated
+    # geoid conversion is configured they must fail closed.
     hindmata = dem.get_elevation_and_slope(19.0178, 72.8478)
-    assert hindmata["in_dem_coverage"] is True
-    assert hindmata["dem_status"] == "REAL_DEM"
-    assert hindmata["is_fallback"] is False
-    assert 2.0 <= hindmata["elevation_m"] <= 15.0
+    assert hindmata["in_dem_coverage"] is False
+    assert hindmata["dem_status"] == "FALLBACK_ANOMALOUS_ELEVATION"
+    assert hindmata["is_fallback"] is True
 
-    # Kurla / Mithi River basin lowland
+    # Kurla / Mithi River basin has the same unresolved vertical-datum issue.
     kurla = dem.get_elevation_and_slope(19.0657, 72.8793)
-    assert kurla["in_dem_coverage"] is True
-    assert 2.0 <= kurla["elevation_m"] <= 20.0
+    assert kurla["in_dem_coverage"] is False
+    assert kurla["is_fallback"] is True
 
     # Sanjay Gandhi National Park / Kanheri Caves upland peak (> 100m)
     peak = dem.get_elevation_and_slope(19.22, 72.91)
@@ -149,9 +149,10 @@ def test_6_risk_engine_integration():
     upland_tv = upland_risk["hydrology_metrics"]["terrain_vulnerability_score"]
     assert hindmata_tv > upland_tv
 
-    # Real DEM provenance must be reflected
-    assert "Copernicus" in hindmata_risk["data_quality"]["dem_elevation"]
-    assert hindmata_risk["data_quality"]["terrain_provenance"].startswith("REAL_DATA")
+    # Invalid terrain must be reflected and cannot produce an operational claim.
+    assert hindmata_risk["data_quality"]["dem_elevation"].startswith("Fallback Baseline")
+    assert hindmata_risk["prediction_valid"] is False
+    assert hindmata_risk["operational_status"] == "UNAVAILABLE_TERRAIN"
 
     print("  [PASS] Test 6: Risk Engine Elevation & Slope Physics Integration Verified")
 

@@ -1,0 +1,164 @@
+{
+  "status": "REQUIRES_VALIDATION",
+  "operational_ready": false,
+  "source": "BMC public GIS",
+  "counts": {
+    "manholes": 1193,
+    "drains_downloaded": 1229,
+    "existing_drains": 787,
+    "excluded_drains": 442,
+    "contours": 1152
+  },
+  "asset_status_counts": {
+    "Existing": 787,
+    "Proposal": 442
+  },
+  "existing_shape_counts": {
+    "ARCH": 58,
+    "RECT": 114,
+    "CIRC": 566,
+    "OREC": 49
+  },
+  "solver_supported_sections": [
+    "circular",
+    "rectangular_closed",
+    "rectangular_open"
+  ],
+  "shape_mapping_status": "BMC section codes require confirmation; ARCH is not implemented.",
+  "missing_node_ids": [],
+  "duplicate_node_ids": [],
+  "invalid_dimension_edge_ids": [],
+  "missing_invert_edge_ids": [],
+  "adverse_slope_edge_ids": [
+    "15565",
+    "18302"
+  ],
+  "flat_slope_edge_ids": [
+    "17784",
+    "18033",
+    "18327",
+    "18649"
+  ],
+  "contour_elevation_range_source_units": [
+    18.2,
+    34.6
+  ],
+  "missing_contour_elevations": 0,
+  "blockers": [
+    "Confirm survey date, accuracy and current as-built status with BMC.",
+    "Confirm THD benchmark relationship to manhole ground levels, contour heights and the terrain DTM.",
+    "Obtain bare-earth terrain and independent checkpoints; contour interval alone does not prove vertical accuracy.",
+    "Supply inlet capture/storage parameters, conduit roughness and outfall/tide boundary conditions.",
+    "Complete the hydraulic catchment beyond the provisional AOI and validate topology.",
+    "Confirm BMC section-code mapping to circular/open/closed rectangular sections; arch geometry still needs hydraulic support.",
+    "Independent rainfall and flood observations are needed for validation."
+  ],
+  "downstream_extension": {
+    "status": "DOWNLOADED_NOT_OUTFALL_VALIDATED",
+    "scope": "Closure follows published existing links downstream from the provisional AOI; it is not a complete catchment or confirmed outfall network.",
+    "drain_count": 1229,
+    "manhole_count": 1193
+  },
+  "topology": {
+    "component_count": 414,
+    "has_directed_cycle": false,
+    "isolated_node_ids": 358,
+    "terminal_node_ids": 62,
+    "unconfirmed_terminal_node_ids": 62,
+    "branch_node_ids": 13,
+    "nodes_without_confirmed_outfall_path": 1193
+  },
+  "retrieved_at": "2026-09-11T18:06:29.429642+00:00",
+  "artifacts": [
+    {
+      "dataset": "storm_manholes",
+      "source_url": "https://prsrvgisapp.mcgm.gov.in/server/rest/services/mcgm/MCGMGIS_Departments_Master_All_Layers/MapServer/6",
+      "license": "BMC copyright; redistribution terms unconfirmed",
+      "operationally_validated": false,
+      "status": "DOWNLOADED",
+      "feature_count": 947,
+      "artifact": {
+        "path": "data\\raw\\pilot_downloads\\20260911T180629429642Z_bmc\\storm_manholes.geojson",
+        "bytes": 309155,
+        "sha256": "0ded8cb08654c6fa274008d1de8e12ca130ca417b5888d2d280f4627fec966b6"
+      },
+      "note": "Complete for IDs intersecting the provisional AOI at query time; full hydraulic catchment coverage is not established."
+    },
+    {
+      "dataset": "storm_drains",
+      "source_url": "https://prsrvgisapp.mcgm.gov.in/server/rest/services/mcgm/MCGMGIS_Departments_Master_All_Layers/MapServer/7",
+      "license": "BMC copyright; redistribution terms unconfirmed",
+      "operationally_validated": false,
+      "status": "DOWNLOADED",
+      "feature_count": 1017,
+      "artifact": {
+        "path": "data\\raw\\pilot_downloads\\20260911T180629429642Z_bmc\\storm_drains.geojson",
+        "bytes": 715959,
+        "sha256": "f3754d70aac256a22ae3651ff93a756d19d408f37c0a074455aa5d29fc3f9c8d"
+      },
+      "note": "Complete for IDs intersecting the provisional AOI at query time; full hydraulic catchment coverage is not established."
+    },
+    {
+      "dataset": "contours_20cm",
+      "source_url": "https://prsrvgisapp.mcgm.gov.in/server/rest/services/mcgm/MCGMGIS_Departments_Master_All_Layers/MapServer/301",
+      "license": "BMC copyright; redistribution terms unconfirmed",
+      "operationally_validated": false,
+      "status": "DOWNLOADED",
+      "feature_count": 1152,
+      "artifact": {
+        "path": "data\\raw\\pilot_downloads\\20260911T180629429642Z_bmc\\contours_20cm.geojson",
+        "bytes": 44758613,
+        "sha256": "480900eaea0b072080e051dbcd7853ae016863a2c1415e54148e5100f5c82572"
+      },
+      "note": "Complete for IDs intersecting the provisional AOI at query time; full hydraulic catchment coverage is not established."
+    },
+    {
+      "dataset": "supplementary_manholes",
+      "status": "DOWNLOADED",
+      "source_url": "https://prsrvgisapp.mcgm.gov.in/server/rest/services/mcgm/MCGMGIS_Departments_Master_All_Layers/MapServer/6",
+      "requested_count": 43,
+      "feature_count": 43,
+      "unresolved_node_ids": [],
+      "license": "BMC copyright; redistribution terms unconfirmed",
+      "artifact": {
+        "path": "data\\raw\\pilot_downloads\\20260911T181006663823Z_bmc-node-references\\supplementary_manholes.geojson",
+        "bytes": 14049,
+        "sha256": "ea79344acdf33869b661a091f649e7e2d40969af9c9e5e154cd52e4245f0e356"
+      }
+    },
+    {
+      "dataset": "downstream_drains",
+      "status": "DOWNLOADED",
+      "source_url": "https://prsrvgisapp.mcgm.gov.in/server/rest/services/mcgm/MCGMGIS_Departments_Master_All_Layers/MapServer",
+      "feature_count": 787,
+      "unqueried_node_ids": [],
+      "missing_node_ids": [],
+      "queried_node_count": 835,
+      "parent_directory": "data\\raw\\pilot_downloads\\20260911T183411005993Z_bmc-downstream",
+      "scope": "Existing downstream closure from pilot edges; not a complete upstream catchment or verified outfall network.",
+      "license": "BMC copyright; redistribution terms unconfirmed",
+      "artifact": {
+        "path": "data\\raw\\pilot_downloads\\20260911T183534970452Z_bmc-downstream\\downstream_drains.geojson",
+        "bytes": 552879,
+        "sha256": "2adb0d4d6da277fc326efffa853600e9a572e592ef9fbdd3d7cfd3b8cd581f18"
+      }
+    },
+    {
+      "dataset": "downstream_manholes",
+      "status": "DOWNLOADED",
+      "source_url": "https://prsrvgisapp.mcgm.gov.in/server/rest/services/mcgm/MCGMGIS_Departments_Master_All_Layers/MapServer",
+      "feature_count": 835,
+      "unqueried_node_ids": [],
+      "missing_node_ids": [],
+      "queried_node_count": 835,
+      "parent_directory": "data\\raw\\pilot_downloads\\20260911T183411005993Z_bmc-downstream",
+      "scope": "Existing downstream closure from pilot edges; not a complete upstream catchment or verified outfall network.",
+      "license": "BMC copyright; redistribution terms unconfirmed",
+      "artifact": {
+        "path": "data\\raw\\pilot_downloads\\20260911T183534970452Z_bmc-downstream\\downstream_manholes.geojson",
+        "bytes": 272449,
+        "sha256": "1586b97b30a4b01f3f993bb4b04903189e39816ae21fb05ef0b8721a96841458"
+      }
+    }
+  ]
+}

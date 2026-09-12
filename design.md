@@ -8,14 +8,14 @@ The first and primary screen is the **Mumbai Command Center dashboard**. Use Rea
 
 ## Selected colour system
 
-Use palette 4 as the visual foundation:
+Use the official 4-colour civic palette as the visual foundation:
 
 | Role | Colour | Hex | Usage |
 |---|---:|---:|---|
-| App background | White | `#F9F9F9` | Main page background |
-| Primary brand / navigation | Blue | `#004E72` | Active navigation, primary buttons, links, map controls |
-| Critical action / warning accent | Orange | `#FF6E42` | High-risk emphasis, urgent actions, warning icons |
-| Header / sidebar / dark text | Navy Blue | `#092634` | Sidebar, header, prominent text, dark map overlays |
+| Primary Navy / Framing | Deep Navy | `#003776` | Header bar, hero alert banner, primary buttons, headings, dark boundary overlays |
+| Pure Surface | Crisp White | `#ffffff` | Topbar text, clean cards, panel surfaces, inputs, brand contrast |
+| Page Canvas | Light Neutral Grey | `#eeeef1` | Canvas background, subtle dividers, soft hover states |
+| Alert Accent | Crimson Red | `#cc3333` | Urgent actions, CTA buttons, alert stripes, badges, accent indicators |
 
 Add only these supporting semantic status colours. They are for flood-risk meaning, not brand decoration:
 
@@ -23,16 +23,16 @@ Add only these supporting semantic status colours. They are for flood-risk meani
 |---|---:|---|
 | Low risk | `#22C55E` | LOW |
 | Moderate risk | `#EAB308` | MODERATE |
-| High risk | `#FF6E42` | HIGH |
+| High risk | `#FF4500` | HIGH |
 | Critical risk | `#DC2626` | CRITICAL |
 | Unknown / missing | `#94A3B8` | NO DATA |
 
 Implementation rules:
 
-- Use `#092634` for the persistent left sidebar and key header areas; keep its text white or near-white.
-- Use `#004E72` for primary actions, selected controls, and interactive map controls.
-- Use `#FF6E42` only where urgency deserves attention: high-risk badges, critical calls to action, and current warnings. Do not use it as the default button colour.
-- Use `#F9F9F9` as background and white cards with light cool-gray borders (`#E2E8F0`).
+- Use `#003776` for top header framing, hero alert container, primary buttons, authority elements, and dark map borders; keep header text white.
+- Use `#ffffff` for cards, panels, and readable contrast against navy elements.
+- Use `#eeeef1` as the soft neutral background canvas to maintain visual calm.
+- Use `#cc3333` for hero action CTA, header alert bottom border stripe, selected route indicators, and active alert badges.
 - Never communicate flood severity with colour alone; pair colour with a clear text label, icon, and numeric value where applicable.
 - Avoid gradients, glassmorphism, neon effects and excessive shadows.
 

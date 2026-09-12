@@ -61,7 +61,7 @@ def download_tile(tile_key: str, dest_dir: str, force: bool = False) -> bool:
 
     start_time = time.time()
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "HydroLens-SIH26085-DEM-Downloader/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "R.A.K.S.H.A.K.-SIH26085-DEM-Downloader/1.0"})
         with urllib.request.urlopen(req, timeout=30.0) as response, open(dest_path, "wb") as out_file:
             total_size = int(response.headers.get("Content-Length", 0))
             downloaded = 0
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     dest_dir = os.path.abspath(args.dest)
 
-    print("=== HYDROLENS MUMBAI DEM INGESTION PIPELINE ===")
+    print("=== R.A.K.S.H.A.K. MUMBAI DEM INGESTION PIPELINE ===")
     print(f"Target Directory: {dest_dir}")
 
     if args.tile:

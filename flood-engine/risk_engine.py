@@ -27,7 +27,7 @@ _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from dem_processor import get_dem_processor
+from dem_processor import DEMProcessor, get_dem_processor
 from drainage_processor import get_drainage_processor
 from ml_model import get_ml_model, FloodMLModel
 from hybrid_model import calculate_hybrid_risk
@@ -42,6 +42,10 @@ class RiskEngine:
     def __init__(self, dem_dir: Optional[str] = None, dem_processor: Optional[Any] = None):
         if dem_processor is not None:
             self.dem_processor = dem_processor
+        elif dem_dir is not None:
+            # Explicit directories are test/request scoped and must not replace the
+            # process-wide default DEM singleton.
+            self.dem_processor = DEMProcessor(dem_dir=dem_dir)
         else:
             self.dem_processor = get_dem_processor(dem_dir=dem_dir)
         self.drainage_processor = get_drainage_processor()
@@ -214,12 +218,16 @@ class RiskEngine:
 
         # Determine explicit DEM data quality provenance
         is_dem_fallback = dem_info.get("is_fallback", not dem_info.get("in_dem_coverage", False))
+        prediction_valid = not is_dem_fallback
         if not is_dem_fallback:
             dem_quality_label = f"Observed {dem_info.get('data_source', 'Copernicus GLO-30 DEM 30m')}"
             terrain_provenance = "REAL_DATA (Copernicus DEM 30m) + MODEL_OUTPUT (Slope)"
         else:
             dem_quality_label = f"Fallback Baseline ({dem_info.get('dem_status', 'DEM_UNAVAILABLE')})"
             terrain_provenance = "FALLBACK (Default Urban Baseline)"
+            contributing_factors.append(
+                "Terrain unavailable: numeric output is a simulated baseline, not an operational prediction"
+            )
 
         return {
             "coordinates": {"lat": lat, "lon": lon},
@@ -232,6 +240,8 @@ class RiskEngine:
             "calibration_mode": calibration_mode,
             "risk_level": risk_level,
             "color_code": color_code,
+            "prediction_valid": prediction_valid,
+            "operational_status": "VALID" if prediction_valid else "UNAVAILABLE_TERRAIN",
             "water_depth_cm": accumulated_depth_cm,
             "water_depth_mm": round(accumulated_depth_mm, 1),
             "nowcast_duration_hours": duration_hours,
@@ -279,7 +289,8 @@ class RiskEngine:
                 "drainage_geometry": "REAL_DATA (OSM Mapped Surface Waterways & Open Drains)" if drainage_info["nearest_drain"]["has_spatial_match"] else "FALLBACK (Default Baseline)",
                 "drainage_capacity": drainage_info["capacity_source"],
                 "drainage": drainage_info["capacity_source"],
-                "model_calibration": calibration_mode
+                "model_calibration": calibration_mode,
+                "prediction_valid": prediction_valid
             }
         }
 

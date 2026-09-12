@@ -1,4 +1,5 @@
 # Logs
+data/runtime/
 logs
 *.log
 npm-debug.log*
@@ -153,5 +154,6 @@ env/
 venv/
 
 # Large DEM Rasters
+data/raw/pilot_downloads/
 data/raw/dem/*.tif
 

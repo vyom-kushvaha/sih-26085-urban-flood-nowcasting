@@ -1,4 +1,7 @@
 # Judge Q&A Preparation & Master Defense Sheet
+
+**R.A.K.S.H.A.K. — Real-time Assessment & Knowledge System for Hydrological Alerts**
+
 # Urban Flood Nowcasting System — SIH26085 (FloodGuard AI)
 
 ---
