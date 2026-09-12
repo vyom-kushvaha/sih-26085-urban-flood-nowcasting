@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/static/platform.css?v=20260912-local-view">
   <link rel="stylesheet" href="/static/brand.css?v=20260912-local-view">
   <link rel="stylesheet" href="/static/civic.css?v=20260912-local-view">
-  <link rel="stylesheet" href="/static/journey.css?v=20260913-close-view">
+  <link rel="stylesheet" href="/static/journey.css?v=20260913-full-hero-slides">
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script defer src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script defer src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
@@ -28,9 +28,13 @@
   </header>
   <main id="main" tabindex="-1">
     <section id="map-page" class="map-page">
-      <div class="city-hero">
-        <div><div class="eyebrow">MUMBAI · URBAN FLOOD INTELLIGENCE</div><h1>A safer journey. A more resilient city.</h1><p>Understand local flood conditions, explore road options,<br>and help your community stay informed.</p><a class="hero-action" href="#journey-planner">Plan your journey <span>↗</span></a><a class="hero-link" href="#/report">Report waterlogging →</a></div>
-        <div class="hero-summary"><span class="hero-symbol" aria-hidden="true">≈</span><span class="hero-city">Built for Mumbai</span><span>Rainfall. Terrain. Drainage.</span><div class="hero-facts"><div><b>0–3 h</b><small>Forecast window</small></div><div><b>24</b><small>BMC wards on map</small></div><div><b>01</b><small>Connected city</small></div></div></div>
+      <div class="city-hero city-hero-slideshow">
+        <div class="hero-slide hero-slide-route"><div class="hero-slide-copy"><div class="eyebrow">SAFER ROUTES · MUMBAI</div><h1>A safer journey. A more resilient city.</h1><p>Compare road-level options before you move through the rain.</p></div></div>
+        <div class="hero-slide hero-slide-nowcast"><div class="hero-slide-copy"><div class="eyebrow">0–3 HOUR NOWCAST</div><h2>See the rain before the road changes.</h2><p>Read rainfall, terrain and drainage signals as conditions develop.</p></div></div>
+        <div class="hero-slide hero-slide-city"><div class="hero-slide-copy"><div class="eyebrow">LIVE CITY SIGNAL</div><h2>Every road tells a different flood story.</h2><p>Follow Mumbai street by street with local risk context.</p></div></div>
+        <div class="hero-actions"><a class="hero-action" href="#journey-planner">Plan your journey <span>↗</span></a><a class="hero-link" href="#/report">Report waterlogging →</a></div>
+        <div class="hero-facts"><div><b>0–3 h</b><small>Forecast</small></div><div><b>24</b><small>BMC wards</small></div><div><b>Live</b><small>Road risk</small></div></div>
+        <div class="hero-slide-progress" aria-hidden="true"><i></i><i></i><i></i></div>
       </div>
       <div class="map-stage">
         <div class="map-viewport">
