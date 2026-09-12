@@ -8,7 +8,7 @@ The repository includes a Render Blueprint in `render.yaml`. It deploys the Fast
 2. Sign in to Render and choose **New > Blueprint**.
 3. Connect `vyom-kushvaha/sih-26085-urban-flood-nowcasting`.
 4. Render will read `render.yaml`. Review the service name and choose **Apply**.
-5. `OPENWEATHER_API_KEY` is optional for the current UI. Add it only if you have a valid key.
+5. `OPENWEATHER_API_KEY` is optional for the current UI. Add it later under the service's **Environment** settings only if you have a valid key.
 
 After the build completes, verify these URLs using the hostname Render assigns:
 

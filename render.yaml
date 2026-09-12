@@ -22,5 +22,3 @@ services:
         value: /tmp/urban-flood/runs
       - key: RAINFALL_STORE_PATH
         value: /tmp/urban-flood/rainfall
-      - key: OPENWEATHER_API_KEY
-        sync: false
