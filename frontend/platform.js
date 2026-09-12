@@ -4,13 +4,14 @@ const API_BASE = (window.RAKSHAK_API_BASE || location.origin).replace(/\/$/, '')
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MUMBAI_DEFAULT = {lat:19.0182,lng:72.8455};
+const LOCAL_MAP_ZOOM = 15;
 const state = {hour:0,position:null,map:null,routeData:null,selected:null,forecast:null,request:0,forecastRequest:0,forecastDetailsOpen:false,photo:null,reportPosition:null};
 const colours = {Low:'#27865d',Moderate:'#d4ad2f',High:'#e47e32',Critical:'#cb4545',Unavailable:'#64748b'};
 const hourLabel = h => ['NOW','+1 HOUR','+2 HOURS','+3 HOURS'][h];
 const depthRisk = d => !Number.isFinite(d) ? 'Unavailable' : d<=5?'Low':d<=15?'Moderate':d<=30?'High':'Critical';
 const withinMumbai = p => p && p.lat>=18.89 && p.lat<=19.30 && p.lng>=72.77 && p.lng<=72.99;
 async function api(path){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),path.includes('/routing/')?60000:20000);try{const response=await fetch(API_BASE+path,{signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Service unavailable');return data;}finally{clearTimeout(timeout);}}
-function nearby(p){if(!state.map)return;state.map.fitBounds(L.latLng(p.lat,p.lng).toBounds(3000),{animate:false,padding:[0,0]});}
+function nearby(p){if(!state.map)return;state.map.setView([p.lat,p.lng],LOCAL_MAP_ZOOM,{animate:false});}
 function initMap(){
   if(typeof L==='undefined'){$('map-message').textContent='Map library unavailable. Check your internet connection and reload.';return;}
   state.map=L.map('map',{zoomControl:false,zoomAnimation:false,fadeAnimation:false,scrollWheelZoom:true,touchZoom:true,bounceAtZoomLimits:false,wheelDebounceTime:80,wheelPxPerZoomLevel:120}).setView([MUMBAI_DEFAULT.lat,MUMBAI_DEFAULT.lng],13);
@@ -87,7 +88,7 @@ async function findRoute(event){
   event?.preventDefault();const origin=$('origin').value.trim(),destination=$('destination').value.trim();if(!origin||!destination){$('route-message').textContent='Enter both a starting point and destination.';return;}
   const request=++state.request;$('find-route').disabled=true;$('route-message').textContent='Finding road options…';state.routeData=null;state.selected=null;renderRoutes();
   const query=new URLSearchParams({origin,destination});if(origin==='Current Location'){if(!state.position){$('route-message').textContent='Use My Location first, or enter a starting point.';$('find-route').disabled=false;return;}query.set('origin_lat',state.position.lat);query.set('origin_lon',state.position.lng);}
-  try{const data=await api('/api/v1/routing/safe-route?'+query);if(request!==state.request)return;state.routeData=data;state.selected=data.routes?.find(r=>r.is_recommended)?.id||data.routes?.[0]?.id;renderRoutes();const c=data.query?.origin_coords;if(c)nearby({lat:c.lat,lng:c.lon});}
+  try{const data=await api('/api/v1/routing/safe-route?'+query);if(request!==state.request)return;state.routeData=data;state.selected=data.routes?.find(r=>r.is_recommended)?.id||data.routes?.[0]?.id;renderRoutes();}
   catch(e){if(request!==state.request)return;$('route-message').textContent='Route unavailable. '+e.message;}
   finally{if(request===state.request)$('find-route').disabled=false;}
 }
@@ -110,7 +111,8 @@ function renderRoutes(){
   // Dropping a bad vertex would connect its neighbours across an unknown gap.
   if(coords.length<2||!coords.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=90&&Math.abs(p[1])<=180)){$('route-message').textContent='Complete road geometry is unavailable. Please recalculate the route.';return;}
   if(coords.length){const routeColour=assessed&&colours[riskDisplayName(selected.risk_category)]?colours[riskDisplayName(selected.risk_category)]:(assessed?selected.color:colours.Unavailable);const popup=assessed?`${esc(selected.risk_category||selected.risk_level||'Evaluated')} · ${esc(selected.max_water_depth_cm)} cm maximum depth`:'Road geometry only. Flood assessment unavailable.';L.polyline(coords,{smoothFactor:0,color:'#ffffff',weight:9,opacity:.95}).addTo(state.routes);L.polyline(coords,{smoothFactor:0,color:routeColour,weight:5,opacity:.9,dashArray:assessed&&selected.stroke_style!=='dashed'?null:'10 5'}).addTo(state.routes).bindPopup(popup);
-    [['A',coords[0]],['B',coords[coords.length-1]]].forEach(([label,p])=>L.marker(p,{icon:L.divIcon({className:'',html:`<div class="endpoint">${label}</div>`,iconSize:[26,26],iconAnchor:[13,13]})}).addTo(state.markers));}
+    [['A',coords[0]],['B',coords[coords.length-1]]].forEach(([label,p])=>L.marker(p,{icon:L.divIcon({className:'',html:`<div class="endpoint">${label}</div>`,iconSize:[26,26],iconAnchor:[13,13]})}).addTo(state.markers));
+    state.map.fitBounds(L.latLngBounds(coords),{padding:[48,48],maxZoom:LOCAL_MAP_ZOOM,animate:false});}
 }
 function routeOptionLabel(route,{assessed,shortestId,fastestId,index}){
   const shortest=route.id===shortestId;

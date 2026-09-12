@@ -4,13 +4,23 @@ services:
     runtime: python
     region: singapore
     plan: free
-    branch: backend-work
+    branch: main
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: ENV
+        value: development
+      - key: ALLOW_SQLITE_FALLBACK
+        value: "true"
+      - key: FORECAST_DB_PATH
+        value: /tmp/urban-flood/forecasts.sqlite3
+      - key: FORECAST_ASSETS_PATH
+        value: /tmp/urban-flood/runs
+      - key: RAINFALL_STORE_PATH
+        value: /tmp/urban-flood/rainfall
       - key: OPENWEATHER_API_KEY
         sync: false
-      - key: PORT
-        value: 8000

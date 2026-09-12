@@ -16,7 +16,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from risk_engine import get_risk_engine
 from dem_processor import get_dem_processor
-from database import log_risk_calculation_db
+from backend.db.database import get_db_session, is_db_available
+from backend.db.repositories import RiskRepository
 from backend.services.historical_scenarios import (
     get_historical_scenarios,
     get_historical_scenario,
@@ -67,8 +68,12 @@ async def calculate_current_risk(request: RiskCalculationRequest):
             duration_hours=request.duration_hours
         )
         
-        # Non-blocking PostGIS log
-        persistence_status = log_risk_calculation_db(result)
+        # Risk calculation remains available in development when PostGIS is not configured.
+        persistence_status = "SKIPPED_DB_UNAVAILABLE"
+        if is_db_available():
+            with get_db_session() as session:
+                repo = RiskRepository(session)
+                persistence_status = repo.log_risk_calculation(result)
         result["persistence_status"] = persistence_status
         
         return result

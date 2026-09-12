@@ -40,7 +40,7 @@ def create_forecast(request: RainfallRun):
         return save_run(request.model_dump(mode='json'), result)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    except (sqlite3.Error, OSError) as exc:
+    except Exception as exc:
         raise HTTPException(503, 'Forecast storage unavailable') from exc
 
 
@@ -50,7 +50,7 @@ def read_forecast(run_id: UUID):
         return get_run(run_id)
     except KeyError as exc:
         raise HTTPException(404, 'Forecast run not found') from exc
-    except (sqlite3.Error, OSError) as exc:
+    except Exception as exc:
         raise HTTPException(503, 'Forecast storage unavailable') from exc
 
 

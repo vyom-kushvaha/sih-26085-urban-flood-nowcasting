@@ -312,7 +312,7 @@ def test_live_gps_out_of_bounds_rejected():
 def test_current_route_control_in_frontend_html():
     """Current recenter, follow and route controls are present."""
     html = client.get("/").text
-    for control in ["mumbai-default", "recalculate", "origin", "destination"]:
+    for control in ["mumbai-default", "find-route", "origin", "destination"]:
         assert f'id="{control}"' in html
 
 

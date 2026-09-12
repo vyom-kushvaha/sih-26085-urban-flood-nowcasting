@@ -1,5 +1,5 @@
 /* Map workspace: independent journey planner, forecast dock and route results. */
-body:has(#map-page:not([hidden])),#map-page{background:#e7e7eb}
+body:has(#map-page:not([hidden])),#map-page{background:#e9e9ed}
 .map-page{max-width:1600px;grid-template-columns:minmax(0,1fr) 340px;gap:20px;margin:24px auto 40px}
 .city-hero{padding:26px 32px;grid-template-columns:1.5fr 1fr;gap:24px;border-bottom-width:3px}
 .city-hero h1{font-family:Inter,Segoe UI,sans-serif;font-size:32px;line-height:1.15;margin:12px 0;letter-spacing:-1px}
