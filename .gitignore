@@ -146,6 +146,8 @@ vite.config.ts.timestamp-*
 
 # Python & cache
 __pycache__/
+.pytest-current/
+.pytest_tmp/
 *.py[cod]
 *$py.class
 .pytest_cache/

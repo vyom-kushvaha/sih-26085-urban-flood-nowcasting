@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from backend.core.config import settings
+
 # Vyom's main API routers
 from backend.routers.risk import router as risk_router
 from backend.routers.weather import router as weather_router
@@ -19,6 +21,7 @@ from backend.routers.drainage import router as drainage_router
 from backend.routers.forecasts import router as forecasts_router
 from backend.routers.surface import router as surface_router
 from backend.routers.data import router as data_router
+from backend.routers.rainfall import router as rainfall_router
 
 # Dev's demo router
 try:
@@ -37,8 +40,8 @@ app = FastAPI(
 # Enable CORS for React Web Dashboard & Citizen Web Portal
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -51,6 +54,7 @@ app.include_router(drainage_router)
 app.include_router(forecasts_router)
 app.include_router(surface_router)
 app.include_router(data_router)
+app.include_router(rainfall_router)
 app.include_router(demo_router)
 
 
@@ -93,6 +97,20 @@ async def health_check():
         "status": "OPERATIONAL",
         "version": "1.0.0",
         "docs_url": "/docs"
+    }
+
+
+@app.get("/api/v1/readiness")
+@app.get("/readiness")
+async def readiness_check():
+    from backend.db.database import database_health
+
+    database = database_health()
+    ready = database["status"] == "CONNECTED" or settings.sqlite_fallback_allowed
+    return {
+        "status": "READY" if ready else "NOT_READY",
+        "environment": settings.env,
+        "database": database,
     }
 
 

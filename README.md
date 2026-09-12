@@ -37,6 +37,14 @@ Python 3.11 or 3.12 is recommended.
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+
+# Database Setup
+# 1. Install PostgreSQL and PostGIS.
+# 2. Copy .env.example to .env and configure DATABASE_URL.
+# 3. Apply database migrations:
+.\.venv\Scripts\alembic upgrade head
+
+# Start the server
 .\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload
 ```
 
