@@ -231,7 +231,12 @@ class DEMTile:
 class DEMProcessor:
     """Manager class for loading, caching, and querying across multiple DEM tiles."""
 
-    def __init__(self, dem_dir: Optional[str] = None):
+    def __init__(
+        self,
+        dem_dir: Optional[str] = None,
+        terrain_manifest_path: Optional[str] = None,
+        pilot_aoi_path: Optional[str] = None,
+    ):
         # Resolve dem_dir from parameter, environment variable, or default relative path
         if dem_dir is None:
             env_path = os.getenv("DEM_DIR") or os.getenv("DEM_PATH")
@@ -245,6 +250,21 @@ class DEMProcessor:
             self.dem_dir = os.path.abspath(dem_dir)
 
         self.tiles: List[DEMTile] = []
+        self.validated_terrain = None
+        manifest_path = terrain_manifest_path or os.getenv("TERRAIN_MANIFEST_PATH")
+        if manifest_path:
+            try:
+                from terrain_dataset import TerrainDataset
+
+                dataset = TerrainDataset(manifest_path)
+                validation = dataset.validate(pilot_aoi_path or os.getenv("PILOT_AOI_PATH"))
+                if validation["accepted"]:
+                    self.validated_terrain = dataset
+                    print(f"[DEMProcessor] Loaded validated terrain: {validation['dataset_id']}")
+                else:
+                    print(f"[DEMProcessor] Rejected terrain manifest: {'; '.join(validation['errors'])}")
+            except Exception as exc:
+                print(f"[DEMProcessor] Rejected terrain manifest: {exc}")
         self._cache: Dict[Tuple[float, float], Dict[str, Any]] = {}
         self._load_tiles()
 
@@ -297,6 +317,31 @@ class DEMProcessor:
         cache_key = (round(lat, 4), round(lon, 4))
         if cache_key in self._cache:
             return self._cache[cache_key]
+
+        if self.validated_terrain is not None:
+            try:
+                point = self.validated_terrain.elevation_at(lat, lon)
+                res = {
+                    "elevation_m": round(point["elevation_m"], 3),
+                    "slope_deg": round(point["slope_deg"], 3),
+                    "slope_percent": round(point["slope_percent"], 3),
+                    "in_dem_coverage": True,
+                    "dem_status": "VALIDATED_HIGH_RES_DTM",
+                    "data_source": f"{point['dataset_id']} ({point['horizontal_crs']}; {point['vertical_datum']})",
+                    "tile_filename": os.path.basename(self.validated_terrain.raster_path),
+                    "is_fallback": False,
+                    "provenance": {
+                        "elevation": "OBSERVED_DTM",
+                        "slope": "MODEL_OUTPUT (Finite Difference Gradient)",
+                        "reason": "Manifest and terrain acceptance gates passed",
+                    },
+                }
+                self._save_cache(cache_key, res)
+                return res
+            except Exception:
+                # Outside the accepted high-resolution pilot, retain legacy
+                # regional lookup with explicit non-operational provenance.
+                pass
 
         # Case 1: No DEM tiles loaded at all
         if not self.tiles:

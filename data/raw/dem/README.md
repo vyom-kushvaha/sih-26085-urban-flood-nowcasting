@@ -1,6 +1,9 @@
 # Digital Elevation Model (DEM) Directory
 
-This directory houses 30m Digital Elevation Model (DEM) GeoTIFF tiles covering the Mumbai Metropolitan Region for the HydroLens Urban Flood Nowcasting System (SIH26085).
+**R.A.K.S.H.A.K. — Real-time Assessment & Knowledge System for Hydrological Alerts**
+
+
+This directory houses 30m Digital Elevation Model (DEM) GeoTIFF tiles covering the Mumbai Metropolitan Region for the R.A.K.S.H.A.K. Urban Flood Nowcasting System (SIH26085).
 
 ## Authoritative Dataset Specifications
 

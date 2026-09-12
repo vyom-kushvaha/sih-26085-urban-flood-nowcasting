@@ -1,0 +1,35 @@
+{
+  "type": "FeatureCollection",
+  "name": "hindmata_dadar_pilot_aoi",
+  "metadata": {
+    "status": "PROVISIONAL_ANALYSIS_AOI",
+    "crs": "EPSG:4326",
+    "area_note": "Approximately 2.6 square kilometres; must be replaced by a surveyed hydraulic catchment boundary before operational use.",
+    "selection_basis": "Contains Hindmata and the first approximately 2 km of its connected OSM drain component for terrain and topology prototyping."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hindmata_dadar_pilot",
+        "status": "PROVISIONAL_ANALYSIS_AOI",
+        "operational": false
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [72.8415, 19.0165],
+          [72.8520, 19.0165],
+          [72.8520, 19.0385],
+          [72.8415, 19.0385],
+          [72.8415, 19.0165]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Hindmata Junction", "role": "pilot_anchor"},
+      "geometry": {"type": "Point", "coordinates": [72.8455, 19.0182]}
+    }
+  ]
+}

@@ -23,6 +23,7 @@ from backend.services.historical_scenarios import (
     get_scenario_replay_rainfall
 )
 from services.weather_service import get_weather_service
+from backend.services.osm_road_router import route as local_osm_route
 
 router = APIRouter(prefix="/api/v1", tags=["Flood Risk & Hydrology"])
 
@@ -346,7 +347,7 @@ def compute_risk_forecast(
     return {
         "location": {"lat": lat, "lon": lon},
         "nowcast_type": "weather-forecast-driven urban flood nowcasting",
-        "methodology": "Open-Meteo numerical weather prediction coupled with HYDROLENS 1D runoff mass balance & DEM terrain vulnerability",
+        "methodology": "Open-Meteo numerical weather prediction coupled with R.A.K.S.H.A.K. 1D runoff mass balance & DEM terrain vulnerability",
         "disclaimer": "Forecast is driven by numerical weather prediction models (Open-Meteo). This is NOT Doppler radar nowcasting or IMD radar assimilation.",
         "horizon_hours": horizon_hours,
         "lead_time_range": f"T+0h to T+{horizon_hours}h",
@@ -361,7 +362,7 @@ def compute_risk_forecast(
             "weather_source": ", ".join(sorted(sources_used)),
             "terrain_elevation": terrain_prov,
             "drainage": "Spatial OSM Network" if timeline else "Default",
-            "hydrology_model": "HYDROLENS 1D Runoff & Ponding Engine"
+            "hydrology_model": "R.A.K.S.H.A.K. 1D Runoff & Ponding Engine"
         },
         "forecast": timeline
     }
@@ -378,7 +379,7 @@ async def get_risk_forecast(
     """
     0-3 Hour Weather-Forecast-Driven Urban Flood Nowcasting.
     Generates localized flood-risk predictions across T+0h to T+Hh (H <= 3) using
-    Open-Meteo hourly weather forecast, 30m DEM terrain, and active HYDROLENS RiskEngine.
+    Open-Meteo hourly weather forecast, 30m DEM terrain, and active R.A.K.S.H.A.K. RiskEngine.
     """
     try:
         return compute_risk_forecast(
@@ -698,8 +699,15 @@ def resolve_location(
     clean = q.lower().strip()
     # Normalize common abbreviations and characters
     clean_norm = clean.replace(".", "").replace("/", " ").replace("-", " ")
+    # Prefer an exact place name.  Without this, "Dadar" matched the longer
+    # "dadar tt" alias first and made origin and destination identical.
+    if clean_norm in KNOWN_LOCATIONS:
+        v = KNOWN_LOCATIONS[clean_norm]
+        if not is_in_mumbai(v["lat"], v["lon"]):
+            raise HTTPException(status_code=400, detail=f"{field_label} is outside the supported Mumbai flood-routing area.")
+        return {"name": v["name"], "lat": v["lat"], "lon": v["lon"]}
     for k, v in KNOWN_LOCATIONS.items():
-        if k in clean_norm or clean_norm in k:
+        if k in clean_norm:
             if not is_in_mumbai(v["lat"], v["lon"]):
                 raise HTTPException(
                     status_code=400,
@@ -737,16 +745,22 @@ def resolve_location(
 _OSRM_CACHE: Dict[Tuple[float, float, float, float], List[Dict[str, Any]]] = {}
 
 
-def fetch_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float) -> List[Dict[str, Any]]:
+def _query_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float, via=None) -> List[Dict[str, Any]]:
     """Query OSRM driving service with alternatives=3 for real-world OSM road routes, with memory caching."""
-    cache_key = (round(o_lat, 4), round(o_lon, 4), round(d_lat, 4), round(d_lon, 4))
+    cache_key = (o_lat, o_lon, d_lat, d_lon, via)
     if cache_key in _OSRM_CACHE:
         return [dict(r) for r in _OSRM_CACHE[cache_key]]
 
     try:
-        url = f"https://router.project-osrm.org/route/v1/driving/{o_lon},{o_lat};{d_lon},{d_lat}?overview=full&geometries=geojson&alternatives=3"
+        # `overview=full` is deliberate: simplifying this geometry joins distant
+        # vertices with straight chords and makes the map look like it crosses
+        # buildings.  These coordinates are the routed OSM road shape.
+        locations = f"{o_lon},{o_lat};" + (f"{via[1]},{via[0]};" if via else "") + f"{d_lon},{d_lat}"
+        url = f"https://router.project-osrm.org/route/v1/driving/{locations}?overview=full&geometries=geojson&alternatives=3&steps=true"
+        if via:
+            url += "&continue_straight=true&waypoints=0;2&radiuses=250;250;250"
         req = urllib.request.Request(url, headers={"User-Agent": "UrbanFloodNowcasting/1.0"})
-        with urllib.request.urlopen(req, timeout=3.5) as resp:
+        with urllib.request.urlopen(req, timeout=6) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data.get("code") == "Ok" and data.get("routes"):
                 routes_out = []
@@ -754,12 +768,20 @@ def fetch_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float) ->
                     geojson_coords = r.get("geometry", {}).get("coordinates", [])
                     if not geojson_coords or len(geojson_coords) < 2:
                         continue
-                    coords = [[round(pt[1], 5), round(pt[0], 5)] for pt in geojson_coords]
-                    if len(coords) > 28:
-                        step = max(1, len(coords) // 25)
-                        coords = coords[::step]
-                    coords[0] = [o_lat, o_lon]
-                    coords[-1] = [d_lat, d_lon]
+                    coords = [[pt[1], pt[0]] for pt in geojson_coords]
+                    steps = []
+                    for leg in r.get("legs", []):
+                        for step in leg.get("steps", []):
+                            maneuver = step.get("maneuver", {})
+                            steps.append({
+                                "road_name": step.get("name") or step.get("ref") or "Unnamed road",
+                                "distance_m": step.get("distance", 0),
+                                "duration_s": step.get("duration", 0),
+                                "type": maneuver.get("type", "continue"),
+                                "modifier": maneuver.get("modifier", ""),
+                                "exit": maneuver.get("exit"),
+                                "location": list(reversed(maneuver["location"])) if maneuver.get("location") else None,
+                            })
 
                     dist_km = round(r.get("distance", 0.0) / 1000.0, 1)
                     if dist_km <= 0.0:
@@ -770,6 +792,8 @@ def fetch_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float) ->
                         "id": f"osrm_route_{idx+1}",
                         "name": f"OSM Alternate Corridor {idx+1}" if idx > 0 else "OSM Primary Shortest Route",
                         "coordinates": coords,
+                        "geometry_source": "OSRM_ROAD_NETWORK",
+                        "steps": steps,
                         "distance_km": dist_km,
                         "estimated_duration_min": dur_min
                     })
@@ -780,6 +804,54 @@ def fetch_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float) ->
     except Exception:
         pass
     return []
+
+
+def fetch_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float) -> List[Dict[str, Any]]:
+    """Return up to three distinct connected driving routes, including nearby corridors."""
+    import math
+    from concurrent.futures import ThreadPoolExecutor
+    key = (o_lat, o_lon, d_lat, d_lon)
+    if key in _OSRM_CACHE:
+        return [dict(r) for r in _OSRM_CACHE[key]]
+    routes = []
+    def add(candidate):
+        points = {tuple(round(v, 5) for v in p) for p in candidate['coordinates']}
+        for existing in routes:
+            other = {tuple(round(v, 5) for v in p) for p in existing['coordinates']}
+            if len(points & other) / max(1, min(len(points), len(other))) > .9:
+                return
+        routes.append(dict(candidate))
+    for candidate in _query_osrm_routes(o_lat, o_lon, d_lat, d_lon):
+        add(candidate)
+    if routes and len(routes) < 3:
+        # Probe neighbouring corridors, but let OSRM snap and route every metre.
+        # No waypoint chord ever becomes displayed geometry.
+        scale = math.cos(math.radians((o_lat + d_lat) / 2))
+        dx, dy = (d_lon-o_lon)*scale, d_lat-o_lat
+        length = math.hypot(dx, dy)
+        if length > .001:
+            offset = min(.008, max(.003, length*.2))
+            probes = [((o_lat+d_lat)/2 + sign*dx/length*offset,
+                       (o_lon+d_lon)/2 - sign*dy/length*offset/scale) for sign in (-1, 1)]
+            baseline = min(r['distance_km'] for r in routes)
+            baseline_uturns = max(sum(s.get('modifier') == 'uturn' for s in r.get('steps', [])) for r in routes)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                batches = list(pool.map(lambda via: _query_osrm_routes(o_lat, o_lon, d_lat, d_lon, via), probes))
+            for batch in batches:
+                for candidate in batch:
+                    if candidate['distance_km'] > baseline*1.8 + .3:
+                        continue
+                    if sum(s.get('modifier') == 'uturn' for s in candidate.get('steps', [])) > baseline_uturns:
+                        continue
+                    add(candidate)
+    routes = sorted(routes, key=lambda r: (r['distance_km'], r['estimated_duration_min']))[:3]
+    for index, r in enumerate(routes, 1):
+        r['id'] = f'osrm_route_{index}'
+        roads = list(dict.fromkeys(s['road_name'] for s in r.get('steps', []) if s.get('road_name') not in (None, 'Unnamed road')))
+        r['name'] = 'Via ' + ' / '.join(roads[:2]) if roads else f'Road option {index}'
+    if routes and len(_OSRM_CACHE) < 2048:
+        _OSRM_CACHE[key] = [dict(r) for r in routes]
+    return routes
 
 
 def fetch_osrm_road_coordinates(o_lat: float, o_lon: float, d_lat: float, d_lon: float) -> Optional[List[List[float]]]:
@@ -899,6 +971,7 @@ def calculate_flood_routes(
         weather_temp = 27.0
         weather_condition = f"Historical Deluge Replay ({replay['timestep_label']})"
         scenario_meta = replay
+        data_mode = "HISTORICAL_REPLAY"
     elif rain is None:
         try:
             weather_service = get_weather_service()
@@ -909,6 +982,7 @@ def calculate_flood_routes(
             weather_timestamp = weather.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
             weather_temp = weather.get("temp_c", 28.0)
             weather_condition = weather.get("condition", "Cloudy")
+            data_mode = "LIVE_WEATHER" if is_live else "SIMULATED_WEATHER_FALLBACK"
         except Exception as e:
             actual_rain = 0.0
             is_live = False
@@ -916,6 +990,7 @@ def calculate_flood_routes(
             weather_timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             weather_temp = 28.0
             weather_condition = "Unavailable"
+            data_mode = "WEATHER_UNAVAILABLE"
     else:
         actual_rain = float(rain)
         is_live = False
@@ -923,6 +998,7 @@ def calculate_flood_routes(
         weather_timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         weather_temp = 28.0
         weather_condition = "Simulated Monsoon"
+        data_mode = "CONTROLLED_SIMULATION"
 
     engine = get_risk_engine()
 
@@ -931,8 +1007,20 @@ def calculate_flood_routes(
     is_shivaji_park = any(k in query_text for k in ["shivaji", "maharaj park", "dadar west"])
     is_andheri = any(k in query_text for k in ["andheri", "bandra", "airport", "subway"])
     is_sion_dadar = ("sion" in query_text and "dadar" in query_text) and not is_shivaji_park
+    origin_destination_distance_m = haversine_m(actual_o_lat, actual_o_lon, actual_d_lat, actual_d_lon)
 
-    if is_shivaji_park:
+    if origin_destination_distance_m <= 35.0:
+        candidates_def = [{
+            "id": "route_arrived",
+            "name": "Destination Reached",
+            "coordinates": [[actual_o_lat, actual_o_lon], [actual_d_lat, actual_d_lon]],
+            "distance_km": origin_destination_distance_m / 1000.0,
+            "estimated_duration_min": 0,
+            "is_elevated": False,
+            "is_depression": False,
+            "hotspot_keys": []
+        }]
+    elif is_shivaji_park:
         cand1 = {
             "id": "route_tilak_flyover",
             "name": "Tilak Flyover & L.J. Road Ridge (Elevated Corridor)",
@@ -1123,12 +1211,6 @@ def calculate_flood_routes(
         else:
             # Arbitrary valid Mumbai pair: Fetch real road geometry from OSRM
             osrm_routes = fetch_osrm_routes(actual_o_lat, actual_o_lon, actual_d_lat, actual_d_lon)
-            if not osrm_routes or len(osrm_routes) < 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail="No road route could be found for this location."
-                )
-
             candidates_def = []
             for idx, ort in enumerate(osrm_routes[:3]):
                 cand_id = f"route_osrm_{idx+1}"
@@ -1144,7 +1226,33 @@ def calculate_flood_routes(
                     "hotspot_keys": []
                 })
 
-    # Recalculate accurate dynamic distances and travel durations based on forward geometry
+    # Displayed vehicle routes must come from the road network, never from the
+    # illustrative waypoint corridors above.  Those legacy corridors are still
+    # used only for their scenario labels/hotspot metadata while this replacement
+    # obtains the complete, turn-by-turn OSM road geometry.
+    if origin_destination_distance_m > 35.0:
+        osrm_routes = fetch_osrm_routes(actual_o_lat, actual_o_lon, actual_d_lat, actual_d_lon)
+        if not osrm_routes:
+            offline_route = local_osm_route(actual_o_lat, actual_o_lon, actual_d_lat, actual_d_lon)
+            osrm_routes = [offline_route] if offline_route else []
+        if not osrm_routes:
+            raise HTTPException(status_code=503, detail="No connected road route is available for this journey. No straight-line route will be shown.")
+        candidates_def = [{
+            "id": route["id"],
+            "name": route["name"],
+            "coordinates": route["coordinates"],
+            "geometry_source": route["geometry_source"],
+            "steps": route.get("steps", []),
+            "distance_km": route["distance_km"],
+            "estimated_duration_min": route["estimated_duration_min"],
+            "is_elevated": False,
+            "is_depression": False,
+            "hotspot_keys": [],
+        } for route in osrm_routes[:3]]
+    else:
+        candidates_def[0]["geometry_source"] = "NO_TRAVEL_REQUIRED"
+
+    # Recalculate accurate dynamic distances and travel durations based on road geometry.
     for cand in candidates_def:
         cand["distance_km"] = calculate_polyline_distance_km(cand["coordinates"])
         speed_factor = 3.0 if cand.get("is_elevated") else (4.0 if not cand.get("is_depression") else 5.5)
@@ -1250,6 +1358,7 @@ def calculate_flood_routes(
         avg_d = round(sum(pt_depths) / len(pt_depths), 1) if pt_depths else 0.0
         route_score = round(0.65 * max(pt_scores) + 0.35 * (sum(pt_scores) / len(pt_scores)), 1) if pt_scores else 0.0
         num_high_risk = len(high_risk_pts)
+        terrain_valid = bool(pt_details) and all(p.get("prediction_valid", False) for p in pt_details)
 
         # Segment-Level Flood Safety Enforcement:
         # A route CANNOT be SAFE/GREEN if ANY segment has depth > 15 cm or score >= 65, or crosses inundated hotspots
@@ -1257,7 +1366,14 @@ def calculate_flood_routes(
         has_moderate_segment = any(d > 5.0 or s >= 35.0 for d, s in zip(pt_depths, pt_scores))
         passes_inundated_hotspot = any(h["name"] in cand.get("hotspot_keys", []) and h["depth_cm"] > 15.0 for h in active_hotspots)
 
-        if has_critical_segment or passes_inundated_hotspot or max_d > 15.0 or route_score >= 65.0:
+        if not terrain_valid:
+            color = "#64748B"
+            level = "UNAVAILABLE"
+            category = "UNAVAILABLE"
+            status_text = "Flood assessment unavailable"
+            badge = "TERRAIN DATA REQUIRED"
+            reason = "Route geometry is available, but flood safety cannot be assessed because validated terrain is unavailable."
+        elif has_critical_segment or passes_inundated_hotspot or max_d > 15.0 or route_score >= 65.0:
             color = "#EF4444"  # Red
             level = "CRITICAL" if max_d > 25.0 or route_score >= 80.0 else "HIGH"
             category = "DANGER"
@@ -1291,6 +1407,8 @@ def calculate_flood_routes(
             "id": cand["id"],
             "name": cand["name"],
             "coordinates": cand["coordinates"],
+            "geometry_source": cand.get("geometry_source", "UNVERIFIED"),
+            "steps": cand.get("steps", []),
             "distance_km": cand["distance_km"],
             "estimated_duration_min": cand["estimated_duration_min"],
             "risk_score": route_score,
@@ -1305,6 +1423,8 @@ def calculate_flood_routes(
             "color": color,
             "risk_category": category,
             "risk_level": level,
+            "terrain_valid": terrain_valid,
+            "prediction_valid": terrain_valid,
             "status_text": status_text,
             "stroke_style": "dashed" if category == "DANGER" else "solid",
             "badge": badge,
@@ -1315,32 +1435,46 @@ def calculate_flood_routes(
             "flood_risk_level": level,
             "num_high_risk_sections": num_high_risk,
             "major_risk_locations": high_risk_pts[:4],
-            "provenance_label": "HYDROLENS_MODELLED_RISK (RiskEngine physics + Copernicus DEM + OSM Drainage)",
+            "provenance_label": "R.A.K.S.H.A.K._MODELLED_RISK (RiskEngine physics + Copernicus DEM + OSM Drainage)",
             "_penalty": penalty
         })
 
     # 6. Determine Practical Recommendation & Check Safe Route Availability
     has_safe_route = any(r["risk_category"] == "SAFE" for r in evaluated_routes)
-    no_safe_warning = None if has_safe_route else f"No safe route currently available. All corridors exceed safe flood thresholds under current rainfall conditions ({actual_rain} mm/hr). Travel is not advised."
+    all_routes_terrain_valid = all(r["terrain_valid"] for r in evaluated_routes)
+    if not all_routes_terrain_valid:
+        no_safe_warning = "Flood-safe routing is unavailable because validated terrain data is missing. No route is certified safe."
+    else:
+        no_safe_warning = None if has_safe_route else f"No safe route currently available. All corridors exceed safe flood thresholds under current rainfall conditions ({actual_rain} mm/hr). Travel is not advised."
 
     # Identify normal (shortest) route and flood-aware safest route
     normal_candidate = min(evaluated_routes, key=lambda r: (r["distance_km"], r["estimated_duration_min"]))
-    safest_candidate = min(evaluated_routes, key=lambda r: r["_penalty"])
+    safest_candidate = min(evaluated_routes, key=lambda r: (
+        {"SAFE": 0, "MODERATE": 1, "DANGER": 2, "UNAVAILABLE": 3}[r["risk_category"]],
+        r["risk_score"], r["max_water_depth_cm"], r["distance_km"], r["estimated_duration_min"]))
 
     has_alternatives = len(evaluated_routes) > 1
 
     for r in evaluated_routes:
         is_safest = (r["id"] == safest_candidate["id"])
         is_normal = (r["id"] == normal_candidate["id"])
+        r["is_shortest"] = is_normal
+        r["is_safest"] = is_safest and all_routes_terrain_valid
 
-        if not has_alternatives:
+        if not r["terrain_valid"]:
+            r["route_type"] = "geometry_only"
+            r["route_type_label"] = "Road Geometry Only"
+            r["is_recommended"] = False
+            r["recommendation_badge"] = "ASSESSMENT UNAVAILABLE"
+            r["recommendation_reason"] = "Validated terrain is required before this route can receive a flood-safety recommendation."
+        elif not has_alternatives:
             r["route_type"] = "single_available"
             r["route_type_label"] = "Single Available Corridor"
             r["is_recommended"] = True
             r["recommendation_badge"] = "ℹ️ EVALUATED CORRIDOR"
             r["recommendation_reason"] = f"Only one practical road route was returned by the road network. Evaluated with {r['max_water_depth_cm']} cm max depth and {r['risk_score']}/100 flood risk."
         else:
-            if is_safest and is_normal:
+            if is_safest and is_normal and r["risk_category"] == "SAFE":
                 r["route_type"] = "shortest_and_safest"
                 r["route_type_label"] = "Shortest & Safest Route"
                 r["is_recommended"] = True
@@ -1487,18 +1621,22 @@ def calculate_flood_routes(
             "physics_weight": 0.7,
             "ml_weight": 0.3,
             "scenario": scenario_meta,
+            "data_mode": data_mode,
             "historical_flood_depth_ground_truth": scenario_meta.get("historical_flood_depth_ground_truth", "NOT APPLICABLE (Live)") if scenario_meta else "NOT APPLICABLE (Live)",
-            "validation_status": scenario_meta.get("validation_status", "Operational real-time flood estimation.") if scenario_meta else "Operational real-time flood estimation.",
+            "validation_status": scenario_meta.get("validation_status", "MODELLED SCENARIO") if scenario_meta else ("MODELLED ESTIMATE" if all_routes_terrain_valid else "UNAVAILABLE: VALIDATED TERRAIN REQUIRED"),
             "accuracy_percentage": None,
-            "provenance_disclosure": "HYDROLENS_MODELLED_RISK: Route flood exposure is computed via active RiskEngine physics, Copernicus GLO-30 DEM elevation/slope, and OSM drainage capacity. It represents modelled inundation risk, not measured road sensor telemetry."
+            "provenance_disclosure": "Route geometry and prototype risk values are model outputs, not measured road sensor telemetry. A flood-safety recommendation requires validated terrain.",
+            "terrain_valid": all_routes_terrain_valid
         },
         "is_arrived": is_arrived,
         "dist_to_dest_m": dist_to_dest_m,
         "safe_route_available": has_safe_route,
+        "prediction_valid": all_routes_terrain_valid,
+        "data_mode": data_mode,
         "no_safe_route_warning": no_safe_warning,
         "routes": evaluated_routes,
         "route_comparison": route_comparison,
-        "provenance_label": "HYDROLENS Modelled Risk (Copernicus DEM + OSM Drainage)",
+        "provenance_label": "R.A.K.S.H.A.K. prototype estimate; validated terrain required",
         "recommended_route_id": safest_candidate["id"],
         "recommendation_reason": safest_candidate.get("recommendation_reason", "Lowest flood risk corridor."),
         "safe_route": {
@@ -1519,6 +1657,8 @@ def calculate_flood_routes(
             "clearance": safest_route_obj["reason"],
             "advisory": safest_route_obj["advisory"],
             "coordinates": safest_route_obj["coordinates"],
+            "geometry_source": safest_route_obj["geometry_source"],
+            "steps": safest_route_obj["steps"],
             "badge": safest_route_obj["badge"],
             "num_high_risk_sections": safest_route_obj.get("num_high_risk_sections", 0),
             "major_risk_locations": safest_route_obj.get("major_risk_locations", []),
@@ -1541,6 +1681,8 @@ def calculate_flood_routes(
             "hazard": danger_route_obj["reason"],
             "advisory": danger_route_obj["advisory"],
             "coordinates": danger_route_obj["coordinates"],
+            "geometry_source": danger_route_obj["geometry_source"],
+            "steps": danger_route_obj["steps"],
             "badge": danger_route_obj["badge"],
             "hazard_points": hazard_points,
             "num_high_risk_sections": danger_route_obj.get("num_high_risk_sections", 0),

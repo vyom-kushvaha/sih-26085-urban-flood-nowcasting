@@ -1,0 +1,2 @@
+checkpoint_id,latitude,longitude,observed_orthometric_m,dtm_orthometric_m,residual_m,survey_method,survey_date,vertical_datum
+CP001,19.0182,72.8455,,,,RTK_DGPS,YYYY-MM-DD,REPLACE_WITH_DATUM

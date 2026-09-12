@@ -1,150 +1,65 @@
-# SIH26085 — Urban Flood Nowcasting System
+# R.A.K.S.H.A.K.
 
-> **Smart India Hackathon 2026** | Software Track | Disaster Management Theme
-> 
-> Ministry of Earth Sciences (MoES) | Prize: ₹1,00,000
+**R.A.K.S.H.A.K. — Real-time Assessment & Knowledge System for Hydrological Alerts**
 
----
 
-## 🎯 Problem Statement
+Smart India Hackathon 2026 software project for the Ministry of Earth Sciences / NCMRWF disaster-management problem statement.
 
-**SIH26085 — Urban Flood Nowcasting System (Drainage and Rainfall Coupling)**
+## Required outcome
 
-Build an AI/ML-based system for real-time urban flood prediction (0-6 hours) by coupling rainfall data with urban drainage network capacity.
+The problem asks for a 0–3 hour street-level urban flood nowcast that couples:
 
----
+- spatial rainfall nowcasts, ultimately from Doppler Weather Radar;
+- a high-resolution terrain model;
+- a directed storm-drain graph with hydraulic capacities;
+- 2D surface routing with drainage surcharge and backflow;
+- a web GIS showing forecast water depth through time;
+- an API for flood-aware navigation routes.
 
-## 🚀 Solution Overview
+## Current state
 
-Our system combines:
-- **Real-time rainfall data** (IMD, OpenWeatherMap APIs)
-- **Digital Elevation Model (DEM)** for terrain analysis
-- **Diffusive-wave 2D hydraulic model** for surface flow simulation
-- **Drainage network coupling** for overflow prediction
-- **ML calibration layer** for accuracy improvement
-- **Citizen Web Portal + Admin Dashboard** for alerts and resource management
+This repository is a prototype. It contains a FastAPI backend, a vanilla HTML/JavaScript Leaflet dashboard, point-weather integrations, a local runoff/risk estimator, OSM waterway context and route demonstrations.
 
----
+It implements bounded prototypes for directed drainage inspection/capacity, surface routing, bidirectional surface-drain exchange, rainfall remapping and saved forecast layers. These are not validated production hydraulics. Doppler radar acquisition and independent model calibration remain pending. The current 30 m CartoDEM data is regional context and is not sufficient for street or society-road elevation claims.
 
-## 🌐 Features
+Public BMC pilot data has now been acquired: 990 manholes (including boundary references), 575 existing drain records plus 442 excluded proposals, and 1,152 contour features. OSM road/waterway topology and a numerical weather snapshot were also downloaded. See the [acquisition report and remaining data requirements](docs/PILOT_DATA_ACQUISITION.md). Terrain accuracy, datum compatibility, hydraulic boundaries and event validation still require evidence before operational predictions can be enabled.
 
-### Citizen Web Portal
-- Auto GPS location detection & search
-- Real-time rainfall display
-- 4-5 km radius interactive risk map
-- Flood risk score (Low/Moderate/High/Critical)
-- Web notifications for alerts
-- Crowdsourced flood reporting
-- Nearest shelter directions
+See the project requirements and implementation sequence:
 
-### Admin Dashboard
-- City-wide flood risk overview
-- Ward-level risk heatmap
-- Real-time sensor data (if available)
-- Resource deployment panel
-- Alert broadcast system
-- Historical analysis
+- [Product requirements](docs/PRD.md)
+- [Phase plan](docs/PHASE_PLAN.md)
+- [High-resolution terrain plan](docs/HIGH_RES_TERRAIN_PLAN.md)
 
----
+## Run locally
 
-## 🏗️ Architecture
+Python 3.11 or 3.12 is recommended.
 
-```
-External APIs          Static Data
-├─ OpenWeatherMap      ├─ DEM (SRTM/Bhuvan)
-├─ IMD                 ├─ Drainage (OSM)
-└─ RainViewer          └─ Flood Zones
-       ↓                    ↓
-  ┌─────────────────────────────┐
-  │      BACKEND (FastAPI)      │
-  │  ├─ Data Ingestion          │
-  │  ├─ Diffusive-Wave Model   │
-  │  ├─ Risk Calculator         │
-  │  └─ API Endpoints           │
-  └─────────────────────────────┘
-              ↓
-  ┌─────────────────────────────┐
-  │   UNIFIED REACT WEB APP     │
-  │  ├─ Citizen Public Portal  │
-  │  ├─ React Admin Dashboard  │
-  │  └─ Leaflet / Mapbox Maps  │
-  └─────────────────────────────┘
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload
 ```
 
----
+Open `http://127.0.0.1:8000`. The frontend uses the same backend origin. Serve it through FastAPI; do not open the HTML directly as a file. Set `window.RAKSHAK_API_BASE` only when intentionally using a separate backend.
 
-## 🛠️ Tech Stack
+## Verify
 
-| Layer | Technology |
-|-------|-----------|
-| Web Portal & Dashboard | React.js + Tailwind CSS |
-| UI Framework | Vite + Radix/Shadcn |
-| Backend | Python FastAPI |
-| Database | PostgreSQL + PostGIS |
-| ML Model | Python (scikit-learn, XGBoost) |
-| Maps | Leaflet / Mapbox GL JS |
-| Cloud | AWS Free Tier |
+From the repository root:
 
----
-
-## 📂 Project Structure
-
-```
-sih-26085-urban-flood-nowcasting/
-├── docs/                      # Comprehensive project documentation
-│   ├── RI_PLAN.md             # Research, PPT & Q&A Master Document
-│   ├── PROBLEM_STATEMENT.md   # SIH26085 problem analysis
-│   ├── PRD.md                 # Product Requirements Document
-│   ├── SYSTEM_DESIGN.md       # Architecture & system design
-│   ├── FRONTEND_DESIGN.md     # UI/UX design (Flutter + React)
-│   ├── Frontend_Design_SIH26085_v2.md # Enhanced UI design spec
-│   ├── BACKEND_DESIGN.md      # API + DB design
-│   ├── API_DOCUMENTATION.md   # API documentation & endpoints
-│   ├── MODEL_DOCUMENTATION.md # Hydrological & ML model design
-│   ├── DATA_SOURCES.md        # Data sources & APIs
-│   ├── JUDGE_QA.md            # Expected Q&A for evaluation
-│   ├── PRESENTATION_SCRIPT.md # Demo & pitch presentation script
-│   └── PHASE_PLAN.md          # 4-day team execution timeline
-├── backend/                   # FastAPI backend services
-├── frontend/                  # Web dashboard & Mobile App
-├── flood-engine/              # Core flood modeling & nowcasting engine
-├── data/                      # Raw, processed, and sample datasets
-├── models/                    # Hydrological & ML models
-├── scripts/                   # Data fetching, preprocessing & utility scripts
-├── tests/                     # Test suites
-└── .github/                   # CI/CD workflows & automation
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify.ps1
 ```
 
----
+The verified baseline recorded on 11 September 2026 is **87 passed**. Warnings concern upstream library deprecations and do not fail the suite.
 
-## 👥 Team
+## Data provenance
 
-| Member | Role |
-|--------|------|
-| Vyom | Architecture + Engine + Integration |
-| D | Backend + Engine Implementation |
-| P | Frontend |
-| PR | Presentation |
-| Ri | Research + Evaluator Preparation |
-| Ni | Frontend Support + QA |
+Every map or API product should identify itself as `OBSERVED`, `MODELLED`, `ESTIMATED` or `SIMULATED`. Hardcoded map hotspots are illustrative UI scenarios. A route must not be presented as flood-safe when the routing or flood service is unavailable.
 
----
+Large or restricted terrain datasets should remain outside Git. Store their metadata and checksums in the repository and configure their local path through the environment.
 
-## 📅 Timeline
+Validate a supplied high-resolution DTM before enabling it:
 
-**2 Sep → 5 Sep 2026** (4 Days)
-
-See [PHASE_PLAN.md](docs/PHASE_PLAN.md) for detailed day-by-day breakdown.
-
----
-
-## 🏆 SIH 2026
-
-- **Problem Code:** SIH26085
-- **Theme:** Disaster Management
-- **Category:** Software
-- **Organization:** Ministry of Earth Sciences (MoES)
-
----
-
-*Built with ❤️ for Smart India Hackathon 2026*
+```powershell
+.\.venv\Scripts\python.exe scripts\validate_high_res_terrain.py --manifest path\to\terrain_manifest.json --lat 19.0182 --lon 72.8455
+```

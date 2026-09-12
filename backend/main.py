@@ -15,6 +15,10 @@ load_dotenv()
 # Vyom's main API routers
 from backend.routers.risk import router as risk_router
 from backend.routers.weather import router as weather_router
+from backend.routers.drainage import router as drainage_router
+from backend.routers.forecasts import router as forecasts_router
+from backend.routers.surface import router as surface_router
+from backend.routers.data import router as data_router
 
 # Dev's demo router
 try:
@@ -43,6 +47,10 @@ app.add_middleware(
 # Include API routers
 app.include_router(risk_router)
 app.include_router(weather_router)
+app.include_router(drainage_router)
+app.include_router(forecasts_router)
+app.include_router(surface_router)
+app.include_router(data_router)
 app.include_router(demo_router)
 
 

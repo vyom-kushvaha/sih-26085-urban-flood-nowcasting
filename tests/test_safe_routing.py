@@ -129,7 +129,8 @@ def test_single_route_handling():
     assert "route_comparison" in result
     assert result["route_comparison"]["has_alternatives"] is False
     assert len(result["routes"]) == 1
-    assert result["routes"][0]["route_type"] == "single_available"
+    expected_type = "single_available" if result["prediction_valid"] else "geometry_only"
+    assert result["routes"][0]["route_type"] == expected_type
     print(f"Single corridor correctly handled: {result['routes'][0]['name']}")
     print(f"Advisory: {result['route_comparison']['recommendation_summary']}")
 
@@ -155,7 +156,7 @@ def test_high_risk_sections_and_locations():
 
 def test_provenance_disclosure():
     """
-    Test 6: Provenance labels declare HYDROLENS modelled risk from Copernicus DEM and OSM drainage,
+    Test 6: Provenance labels declare R.A.K.S.H.A.K. modelled risk from Copernicus DEM and OSM drainage,
     with no fabricated road sensor claims.
     """
     print("\n--- Test 6: Provenance and Scientific Integrity ---")
@@ -166,7 +167,7 @@ def test_provenance_disclosure():
     )
 
     assert "provenance_label" in result
-    assert "Copernicus DEM" in result["provenance_label"] or "HYDROLENS" in result["provenance_label"]
+    assert "Copernicus DEM" in result["provenance_label"] or "R.A.K.S.H.A.K." in result["provenance_label"]
     assert "provenance_disclosure" in result["query"]
 
     for cand in result["routes"]:

@@ -6,12 +6,13 @@
 <title>R.A.K.S.H.A.K. — Real-time Urban Flood Nowcasting | SIH 2026 Prototype</title>
 <style>
   :root{
-    --primary-blue:#004E72;
-    --navy:#092634;
-    --orange:#FF6E42;
-    --bg:#F9F9F9;
+    --primary-blue:#003776;
+    --navy:#003776;
+    --navy-mid:#002855;
+    --orange:#cc3333;
+    --bg:#eeeef1;
     --white:#FFFFFF;
-    --surface:#EEF3F5;
+    --surface:#F5F8FA;
     --border:#DCE3E6;
     --text:#0F2733;
     --text-muted:#52666F;
@@ -117,13 +118,13 @@
     white-space:nowrap;
   }
   .btn-primary{background:var(--primary-blue);color:var(--white);}
-  .btn-primary:hover{background:#003c58;}
+  .btn-primary:hover{background:#002855;}
   .btn-outline{background:var(--white);color:var(--primary-blue);border-color:var(--primary-blue);}
   .btn-outline:hover{background:var(--surface);}
   .btn-ghost{background:transparent;color:var(--text-muted);border-color:var(--border);}
   .btn-ghost:hover{background:var(--surface);color:var(--navy);}
   .btn-orange{background:var(--orange);color:var(--white);}
-  .btn-orange:hover{background:#e85a2c;}
+  .btn-orange:hover{background:#e03e00;}
   .btn-sm{padding:6px 12px;font-size:0.8rem;}
   .btn:disabled{opacity:0.5;cursor:not-allowed;}
   .btn-block{width:100%;}
@@ -512,7 +513,7 @@
     <div class="header-right">
       <button class="btn btn-outline btn-sm" id="muniLoginBtn">Municipality Login</button>
       <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu" aria-expanded="false">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M3 12H21M3 18H21" stroke="#092634" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6H21M3 12H21M3 18H21" stroke="#003776" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
     </div>
   </div>
@@ -757,7 +758,7 @@ function mockMapSVG(opts){
   return `
   <svg viewBox="0 0 900 520" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map placeholder">
     <rect width="900" height="520" fill="#DCE7E9"/>
-    ${showRain ? `<rect width="900" height="520" fill="#004E72" opacity="0.06"/>` : ``}
+    ${showRain ? `<rect width="900" height="520" fill="#003776" opacity="0.06"/>` : ``}
     <g opacity="0.9">
       <rect x="0" y="0" width="900" height="520" fill="#E4ECED"/>
       <rect x="40" y="40" width="230" height="150" fill="#D3E0E2"/>
@@ -784,12 +785,12 @@ function mockMapSVG(opts){
     </g>
     ${showRoadRisk ? `<path d="M0,420 H580" stroke="#C22B2B" stroke-width="6" fill="none" stroke-dasharray="2 10" stroke-linecap="round"/>` : ``}
     ${showDrain ? `
-      <g stroke="#004E72" stroke-width="2.4" fill="none" opacity="0.8">
+      <g stroke="#003776" stroke-width="2.4" fill="none" opacity="0.8">
         <path d="M300,200 V420"/>
         <path d="M580,200 V420"/>
         <path d="M300,300 H580"/>
       </g>
-      <g fill="#004E72">
+      <g fill="#003776">
         <circle cx="300" cy="300" r="5"/>
         <circle cx="580" cy="300" r="5"/>
         <circle cx="300" cy="420" r="5"/>
@@ -803,7 +804,7 @@ function mockMapSVG(opts){
         </circle>
       </g>` : ``}
     <g>
-      <circle cx="450" cy="360" r="7" fill="#092634"/>
+      <circle cx="450" cy="360" r="7" fill="#003776"/>
       <circle cx="450" cy="360" r="7" fill="none" stroke="#FFFFFF" stroke-width="2"/>
     </g>
   </svg>`;
