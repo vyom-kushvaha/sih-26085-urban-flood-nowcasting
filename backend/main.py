@@ -22,6 +22,8 @@ from backend.routers.forecasts import router as forecasts_router
 from backend.routers.surface import router as surface_router
 from backend.routers.data import router as data_router
 from backend.routers.rainfall import router as rainfall_router
+from backend.routers.operations import router as operations_router
+from backend.routers.roads import router as roads_router
 
 # Dev's demo router
 try:
@@ -55,6 +57,8 @@ app.include_router(forecasts_router)
 app.include_router(surface_router)
 app.include_router(data_router)
 app.include_router(rainfall_router)
+app.include_router(operations_router)
+app.include_router(roads_router)
 app.include_router(demo_router)
 
 

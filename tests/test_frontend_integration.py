@@ -122,7 +122,9 @@ def test_all_routes_together():
 
     # Verify recommended route
     assert "recommended_route_id" in data
-    assert data["recommended_route_id"] in route_ids
+    # Live weather exposure is not a certified flood-safety recommendation.
+    assert data["recommended_route_id"] is None
+    assert data["prediction_valid"] is False
 
     # Verify backward compatibility
     assert "safe_route" in data
@@ -333,26 +335,23 @@ def test_map_drag_preserves_route_state():
 
 
 def test_safe_route_hybrid_breakdown():
-    """Test 20: Verify /api/v1/routing/safe-route exposes physics/ML hybrid breakdown and fallback metadata."""
+    """Live routes expose calculation provenance without invented ML confidence."""
     res = client.get("/api/v1/routing/safe-route?origin=Hindmata&destination=Kurla")
     assert res.status_code == 200
     data = res.json()
 
     assert "query" in data
-    assert data["query"]["calibration_mode"] == "physics_fallback"
-    assert data["query"]["physics_weight"] == 0.7
-    assert data["query"]["ml_weight"] == 0.3
+    assert data["data_mode"] == "LIVE_RAINFALL_SCREENING"
+    assert data["calculation"]["sample_spacing_max_m"] == 100
+    assert data["safe_route_available"] is False
 
     assert "routes" in data
     assert len(data["routes"]) > 0
     for r in data["routes"]:
-        assert "physics_score" in r
-        assert "hybrid_score" in r
-        assert "calibration_mode" in r
-        assert r["calibration_mode"] == "physics_fallback"
-        assert r["ml_score"] is None
-        assert r["hybrid_score"] == r["physics_score"]
-    print("  [PASS] Test 20: Safe Route Endpoint Exposes Hybrid Metadata & Fallback Alignment")
+        assert "segments" in r
+        assert "rainfall_coverage_pct" in r
+        assert r["risk_score"] is None
+        assert r["prediction_valid"] is False
 
 
 def test_scenario_simulator_frontend_integration():
