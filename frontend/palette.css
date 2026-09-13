@@ -1,0 +1,118 @@
+/*
+ * Reversible final UI layer. The original component styles remain intact below
+ * this override in the cascade; remove its link from index.html to restore them.
+ */
+:root{
+  --ink:#17211e;
+  --muted:#607069;
+  --paper:#f3f5f2;
+  --line:#dce3df;
+  --accent:#2a4c3f;
+  --teal:#4a9195;
+  --forest:#141f1c;
+  --leaf:#446b39;
+  --cream:#e7e2a8;
+  color-scheme:light;
+}
+
+body{background:var(--paper);color:var(--ink)}
+
+/* Navigation uses the darkest palette tone; accents remain sparse. */
+.topbar{
+  background:var(--forest);
+  border-bottom:1px solid #ffffff1f;
+  box-shadow:0 2px 14px #141f1c24;
+}
+.brand-icon{background:var(--cream);color:var(--forest);box-shadow:none}
+.brand small{color:#c8d5cf}
+nav a{color:#cbd6d1}
+nav a:hover{background:#ffffff0c;color:#fff}
+nav a.active{background:#fff;color:var(--forest)}
+.portal-link{background:var(--teal);color:#fff;box-shadow:none}
+.portal-link:hover{background:#3f7f82}
+
+/* Neutral surfaces keep the product calm and leave risk colours unambiguous. */
+.map-page{background:var(--paper)}
+.map-sidebar,.journey-results,.panel{
+  background:#fff;
+  border-color:var(--line);
+  box-shadow:0 8px 26px #17211e0b;
+}
+.map-sidebar{box-shadow:0 8px 30px #17211e0d}
+.eyebrow,.planner-heading .eyebrow,.results-heading .eyebrow,
+.forecast-dock .eyebrow,.legend .eyebrow{color:var(--teal)}
+.muted,.message,.route-option small{color:var(--muted)}
+
+input,select,textarea,.route-form input{
+  background:#fbfcfb;
+  border-color:#d5ddd8;
+  color:var(--ink);
+}
+input:hover,select:hover,textarea:hover,.route-form input:hover{border-color:#aebdb5}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--teal);
+  box-shadow:0 0 0 3px #4a919526;
+}
+.primary{
+  background:var(--accent);
+  border-color:var(--accent);
+  box-shadow:0 4px 12px #2a4c3f20;
+}
+.primary:hover{background:var(--forest);transform:translateY(-1px)}
+.secondary{background:#fff;border-color:#b8c8c0;color:var(--accent)}
+.secondary:hover{background:#f4f7f5;border-color:var(--teal)}
+
+/* The photo remains the visual focus; palette colours support readability. */
+.city-hero{box-shadow:0 12px 32px #17211e14}
+.hero-slide:before{
+  background:linear-gradient(90deg,#141f1cf2 0%,#203b32d9 48%,#141f1c4f 100%);
+}
+.hero-action{background:var(--cream);color:var(--forest);box-shadow:0 5px 18px #0002}
+.hero-action:hover{background:#f1edbd}
+.hero-link{color:#f3f7f5}
+.city-hero>.hero-facts{background:#111b18c4;border-color:#ffffff29}
+.hero-slide-progress i:after{background:var(--teal)}
+
+/* Floating map information is white and compact against the basemap. */
+.map-status,.map-message,.legend,.location-details,.forecast-dock{
+  background:#fffffff5;
+  border-color:var(--line);
+  box-shadow:0 8px 24px #17211e16;
+  backdrop-filter:blur(8px);
+}
+.map-controls button{background:#fff;border-color:var(--line);color:var(--forest)}
+.map-controls button:hover{border-color:var(--teal);color:var(--accent)}
+.forecast-time-label{background:#edf3f0;color:var(--accent)}
+.forecast-dock .timeline{background:#f0f3f1}
+.forecast-dock .timeline button:hover{background:#e1eae5;color:var(--forest)}
+.forecast-dock .timeline button[aria-pressed=true],.timeline button[aria-pressed=true]{
+  background:var(--accent);border-color:var(--accent);color:#fff;
+}
+
+.route-option{background:#fff;border-color:var(--line)}
+.route-option:hover{border-color:#9ab2a7;box-shadow:0 4px 14px #17211e0c}
+.route-option.selected{border-color:var(--teal);border-left-color:var(--accent);background:#f1f6f3}
+#route-message{background:#f1f5f3;color:#52645c}
+
+.content-page{color:var(--ink)}
+.page-heading{
+  background:linear-gradient(120deg,var(--forest),var(--accent));
+  border-bottom:0;
+  box-shadow:0 12px 30px #17211e16;
+}
+.page-heading p{color:#d6e0db}
+.status-row{border-top-color:var(--teal)}
+.status-row strong,.panel h2,.feature-list{color:var(--ink)}
+.flow span{background:var(--accent)}
+.badge{background:var(--leaf)}
+.preview-banner{border-color:var(--line);border-left-color:var(--teal);color:var(--ink)}
+.problem-options label{border-color:var(--line);background:#fbfcfb}
+.problem-options label:has(input:checked){border-color:var(--teal);background:#f0f6f3}
+
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,
+summary:focus-visible{outline-color:var(--teal)}
+
+@media(max-width:760px){
+  .hero-slide:before{background:linear-gradient(90deg,#141f1cf5 0%,#203b32e5 62%,#141f1c70 100%)}
+  .map-sidebar,.journey-results,.panel{box-shadow:0 5px 18px #17211e0b}
+}

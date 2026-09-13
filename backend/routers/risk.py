@@ -836,15 +836,17 @@ def fetch_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float) ->
         length = math.hypot(dx, dy)
         if length > .001:
             offset = min(.008, max(.003, length*.2))
-            probes = [((o_lat+d_lat)/2 + sign*dx/length*offset,
-                       (o_lon+d_lon)/2 - sign*dy/length*offset/scale) for sign in (-1, 1)]
+            offsets = (offset, min(.012, offset * 2))
+            probes = [((o_lat+d_lat)/2 + sign*dx/length*probe_offset,
+                       (o_lon+d_lon)/2 - sign*dy/length*probe_offset/scale)
+                      for probe_offset in offsets for sign in (-1, 1)]
             baseline = min(r['distance_km'] for r in routes)
             baseline_uturns = max(sum(s.get('modifier') == 'uturn' for s in r.get('steps', [])) for r in routes)
-            with ThreadPoolExecutor(max_workers=2) as pool:
+            with ThreadPoolExecutor(max_workers=4) as pool:
                 batches = list(pool.map(lambda via: _query_osrm_routes(o_lat, o_lon, d_lat, d_lon, via), probes))
             for batch in batches:
                 for candidate in batch:
-                    if candidate['distance_km'] > baseline*1.8 + .3:
+                    if candidate['distance_km'] > baseline*2.0 + .3:
                         continue
                     if sum(s.get('modifier') == 'uturn' for s in candidate.get('steps', [])) > baseline_uturns:
                         continue
@@ -978,24 +980,9 @@ def calculate_flood_routes(
         scenario_meta = replay
         data_mode = "HISTORICAL_REPLAY"
     elif rain is None:
-        try:
-            weather_service = get_weather_service()
-            weather = weather_service.get_current_weather(lat=actual_o_lat, lon=actual_o_lon, force_refresh=force_refresh)
-            actual_rain = float(weather.get("rainfall_mm_hr", 0.0))
-            is_live = not weather.get("is_mock", False)
-            weather_source = weather.get("source", "OpenWeatherMap API")
-            weather_timestamp = weather.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-            weather_temp = weather.get("temp_c", 28.0)
-            weather_condition = weather.get("condition", "Cloudy")
-            data_mode = "LIVE_WEATHER" if is_live else "SIMULATED_WEATHER_FALLBACK"
-        except Exception as e:
-            actual_rain = 0.0
-            is_live = False
-            weather_source = f"WEATHER_SERVICE_ERROR ({str(e)})"
-            weather_timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            weather_temp = 28.0
-            weather_condition = "Unavailable"
-            data_mode = "WEATHER_UNAVAILABLE"
+        # Fetch spatial live input only after the actual road routes are known.
+        # The live assessment below never consumes the simulated weather fallback.
+        actual_rain = 0.0
     else:
         actual_rain = float(rain)
         is_live = False
@@ -1256,6 +1243,10 @@ def calculate_flood_routes(
         } for route in osrm_routes[:3]]
     else:
         candidates_def[0]["geometry_source"] = "NO_TRAVEL_REQUIRED"
+
+    if rain is None and scenario_id is None:
+        from backend.services.live_route_assessment import assess_routes
+        return assess_routes(candidates_def, engine, resolved_origin, resolved_dest, force_refresh)
 
     # Recalculate accurate dynamic distances and travel durations based on road geometry.
     for cand in candidates_def:
@@ -1700,7 +1691,7 @@ def calculate_flood_routes(
 
 @router.get("/routing/safe-route", response_model=Dict[str, Any])
 @router.get("/risk/safe-route", response_model=Dict[str, Any])
-async def get_safe_route(
+def get_safe_route(
     origin: str = Query("Hindmata, Mumbai", description="Origin name or address"),
     destination: str = Query("Kurla, Mumbai", description="Destination name or address"),
     origin_lat: Optional[float] = Query(None, ge=-90.0, le=90.0),
@@ -1739,7 +1730,7 @@ async def get_safe_route(
 
 @router.post("/routing/safe-route", response_model=Dict[str, Any])
 @router.post("/risk/safe-route", response_model=Dict[str, Any])
-async def post_safe_route(request: RouteCalculationRequest):
+def post_safe_route(request: RouteCalculationRequest):
     """
     Compute live flood-evaluated routes via POST body with optional historical scenario replay.
     """

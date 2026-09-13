@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     allow_sqlite_fallback: bool = True
     forecast_db_path: str | None = None
     forecast_assets_path: str | None = None
+    operations_db_path: str = "data/runtime/operations.sqlite3"
+    municipal_api_token: str | None = None
     rainfall_primary_provider: Literal["open_meteo", "official"] = "open_meteo"
     rainfall_official_feed_url: str | None = None
     rainfall_official_feed_token: str | None = None

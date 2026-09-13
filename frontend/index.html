@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#003776">
+  <meta name="theme-color" content="#141F1C">
   <title>R.A.K.S.H.A.K. — Real-time Assessment &amp; Knowledge System for Hydrological Alerts</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
@@ -10,11 +10,15 @@
   <link rel="stylesheet" href="/static/brand.css?v=20260912-local-view">
   <link rel="stylesheet" href="/static/civic.css?v=20260912-local-view">
   <link rel="stylesheet" href="/static/journey.css?v=20260913-full-hero-slides">
+  <!-- Reversible final theme: remove this one link to restore the previous UI. -->
+  <link rel="stylesheet" href="/static/palette.css?v=20260913-clean-forest">
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script defer src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script defer src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
   <script defer src="/static/map-gestures.js?v=20260912-local-view"></script>
-  <script defer src="/static/platform.js?v=20260913-close-view"></script>
+  <script defer src="/static/live-routes.js?v=20260913-live"></script>
+  <script defer src="/static/road-exposure.js?v=20260913-visible"></script>
+  <script defer src="/static/platform.js?v=20260913-live"></script>
   <script defer src="/static/saved-forecast.js?v=20260912-local-view"></script>
 </head>
 <body>
@@ -42,7 +46,7 @@
         </div>
         <div class="map-status"><span><i class="tiny-dot"></i> <b id="nowcast-status">Nowcast unavailable</b></span><span>High-risk areas <b id="risk-count">—</b></span><span id="updated">Last updated: Not Available</span></div>
         <div class="map-controls"><button id="mumbai-default" title="Return to the default Mumbai area" aria-label="Mumbai default area">◎ <span>Mumbai Default</span></button></div>
-        <div id="map-message" class="map-message" role="status">Mumbai view · Hindmata–Dadar is the default flood-routing area.</div>
+        <div id="map-message" class="map-message" role="status">Greater Mumbai arterial roads load automatically from live rainfall screening.</div>
         <div id="location-details" class="location-details" hidden></div>
         <div class="legend"><span class="eyebrow">PREDICTED ROAD RISK</span><div><i style="background:#27865d"></i>Low <i style="background:#d4ad2f"></i>Moderate <i style="background:#e47e32"></i>High <i style="background:#cb4545"></i>Critical</div><small>Grey: no valid assessment · Closure: official restriction</small></div>
         <section class="forecast-dock" aria-label="Point forecast time controls">
@@ -57,7 +61,7 @@
           <label for="origin"><span class="waypoint-dot" aria-hidden="true"></span>From</label><input id="origin" value="Hindmata, Mumbai" placeholder="Starting point in Mumbai" list="places" required autocomplete="off">
           <label for="destination"><span class="waypoint-dot destination-dot" aria-hidden="true"></span>To</label><input id="destination" value="Dadar, Mumbai" placeholder="Search destination in Mumbai" list="places" required autocomplete="off">
           <datalist id="places"><option>Hindmata, Mumbai</option><option>Dadar, Mumbai</option><option>Kurla, Mumbai</option><option>Shivaji Park, Mumbai</option><option>Sion, Mumbai</option><option>Andheri, Mumbai</option><option>Bandra, Mumbai</option></datalist>
-          <button class="primary" id="find-route">Find Safest Route <span>→</span></button>
+          <button class="primary" id="find-route">Compare Live Routes <span>→</span></button>
         </form>
         <div id="route-options" class="route-options" aria-label="Available routes"></div>
         <div id="route-message" class="message" role="status" hidden></div>
