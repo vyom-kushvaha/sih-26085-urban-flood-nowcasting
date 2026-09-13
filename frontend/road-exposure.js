@@ -3,7 +3,9 @@ let roadExposureTimer;
 async function loadVisibleRoadExposure(){
   if(!state.map||state.map.getZoom()<10)return;
   const bounds=state.map.getBounds(),request=++state.exposureRequest;
-  const query=new URLSearchParams({west:bounds.getWest(),south:bounds.getSouth(),east:bounds.getEast(),north:bounds.getNorth(),zoom:state.map.getZoom()});
+  const area={west:Math.max(72.77,bounds.getWest()),south:Math.max(18.89,bounds.getSouth()),east:Math.min(72.99,bounds.getEast()),north:Math.min(19.30,bounds.getNorth()),zoom:state.map.getZoom()};
+  if(area.west>=area.east||area.south>=area.north){state.exposure.clearLayers();$('nowcast-status').textContent='Outside Mumbai coverage';$('risk-count').textContent='—';$('map-message').textContent='Return to Mumbai to view road screening.';return;}
+  const query=new URLSearchParams(area);
   $('nowcast-status').textContent='Calculating visible roads…';
   try{
     const data=await api('/api/v1/roads/exposure?'+query);
