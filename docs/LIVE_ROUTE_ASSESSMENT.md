@@ -44,6 +44,10 @@ never affect colours.
    older than 30 minutes or more than 5 minutes in the future. Cache for 5 minutes.
 5. Convert the interval total into mm/hour using `amount * 3600 / interval`.
    See the [provider interval contract](https://open-meteo.com/en/docs).
+   When Open-Meteo is unreachable, the service queries MET Norway
+   Locationforecast using bounded ~8 km backup cells and its required identified
+   User-Agent. The one-hour numerical forecast remains labelled with its provider;
+   it is never presented as measured rainfall or radar nowcast.
 6. Calculate distance-weighted mean and peak rainfall per route. Exposure index:
    `0.65 * peak + 0.35 * distance-weighted mean`, in mm/hour. These weights are
    prototype comparison weights, not calibrated flood probabilities.

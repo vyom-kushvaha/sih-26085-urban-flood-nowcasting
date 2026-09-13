@@ -18,6 +18,28 @@ def test_interval_conversion_and_stale_rejection(monkeypatch):
     assert (19.1, 72.1) not in result
 
 
+def test_met_norway_forecast_is_bounded_live_fallback(monkeypatch):
+    live._cache.clear()
+    now = datetime.now(timezone.utc)
+    response = Mock()
+    response.json.return_value = {"properties": {"meta": {
+        "updated_at": now.isoformat(), "units": {"precipitation_amount": "mm"}},
+        "timeseries": [{"time": now.isoformat(), "data": {"next_1_hours": {
+            "details": {"precipitation_amount": 3.5}}}}]}}
+    calls = []
+    def get(url, **kwargs):
+        calls.append(url)
+        if "open-meteo" in url:
+            raise live.requests.RequestException("primary unavailable")
+        return response
+    monkeypatch.setattr(live.requests, "get", get)
+    result = live.fetch_rainfall([(19.00, 72.80), (19.02, 72.82)], True)
+    assert len(result) == 2
+    assert all(item["rainfall_mm_hr"] == 3.5 for item in result.values())
+    assert all(item["source"].startswith("MET Norway") for item in result.values())
+    assert calls.count(live.MET_NORWAY_URL) == 1
+
+
 def test_sampling_covers_long_edges_without_chords():
     segments = live.sample_segments([[19, 72], [19.01, 72], [19.01, 72.01]])
     assert len(segments) > 20

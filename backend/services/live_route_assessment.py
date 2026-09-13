@@ -4,6 +4,7 @@ This is a comparative estimate, never an operational road-passability claim.
 """
 import math
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from threading import Lock
 
@@ -15,10 +16,49 @@ _cache = {}
 _lock = Lock()
 SPACING_M = 100
 MAX_SAMPLES = 2400
+MET_NORWAY_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+MET_USER_AGENT = "R.A.K.S.H.A.K./1.0 (https://github.com/vyom-kushvaha/sih-26085-urban-flood-nowcasting)"
 
 
 def weather_cell(point):
     return tuple(round(value / .02) * .02 for value in point)
+
+
+def _met_fallback_cell(cell):
+    """Coarser ~8 km cells keep the backup provider request volume bounded."""
+    return tuple(round(value / .08) * .08 for value in cell)
+
+
+def _fetch_met_norway(anchor, now):
+    response = requests.get(MET_NORWAY_URL, params={"lat": anchor[0], "lon": anchor[1]},
+                            headers={"User-Agent": MET_USER_AGENT, "Accept": "application/json"}, timeout=10)
+    response.raise_for_status()
+    payload = response.json()
+    properties = payload["properties"]
+    updated = datetime.fromisoformat(properties["meta"]["updated_at"].replace("Z", "+00:00"))
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+    if not (0 <= (now - updated).total_seconds() <= 21600):
+        raise ValueError("Backup forecast issue time is stale")
+    if properties["meta"].get("units", {}).get("precipitation_amount") != "mm":
+        raise ValueError("Unexpected backup precipitation unit")
+    for frame in properties["timeseries"]:
+        details = frame.get("data", {}).get("next_1_hours", {}).get("details", {})
+        if "precipitation_amount" not in details:
+            continue
+        stamp = datetime.fromisoformat(frame["time"].replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        lead = (stamp - now).total_seconds()
+        amount = float(details["precipitation_amount"])
+        if -3600 <= lead <= 7200 and math.isfinite(amount) and amount >= 0:
+            return {"rainfall_mm_hr": amount, "precipitation_mm": amount,
+                    "interval_seconds": 3600, "valid_time": stamp.isoformat(),
+                    "source": "MET Norway Locationforecast numerical forecast",
+                    "data_kind": "NUMERICAL_FORECAST", "provider_lat": anchor[0],
+                    "provider_lon": anchor[1], "fetched_at": now.isoformat(),
+                    "forecast_lead_seconds": round(lead)}
+    raise ValueError("Backup forecast has no usable one-hour precipitation frame")
 
 
 def fetch_rainfall(cells, force_refresh=False):
@@ -66,9 +106,27 @@ def fetch_rainfall(cells, force_refresh=False):
                     _cache[cell] = (time.monotonic(), item)
         except (requests.RequestException, ValueError, KeyError, TypeError):
             continue
+    remaining = [cell for cell in missing if cell not in result]
+    anchors = {_met_fallback_cell(cell) for cell in remaining}
+    backup = {}
+    with ThreadPoolExecutor(max_workers=min(4, len(anchors) or 1)) as pool:
+        futures = {pool.submit(_fetch_met_norway, anchor, now): anchor for anchor in anchors}
+        for future in as_completed(futures):
+            try:
+                backup[futures[future]] = future.result()
+            except (requests.RequestException, ValueError, KeyError, TypeError):
+                continue
+    for cell in remaining:
+        item = backup.get(_met_fallback_cell(cell))
+        if item:
+            result[cell] = item
+            with _lock:
+                if len(_cache) > 512:
+                    _cache.clear()
+                _cache[cell] = (time.monotonic(), item)
     # Cached records also pass freshness checks at the time of use.
     return {cell: item for cell, item in result.items()
-            if -300 <= (now - datetime.fromisoformat(item["valid_time"])).total_seconds() <= 1800}
+            if -7200 <= (now - datetime.fromisoformat(item["valid_time"])).total_seconds() <= 1800}
 
 
 def sample_segments(coordinates):
@@ -106,6 +164,7 @@ def assess_routes(candidates, engine, origin, destination, force_refresh=False):
             record = weather.get(weather_cell(segment["point"]))
             segment["rainfall_mm_hr"] = record["rainfall_mm_hr"] if record else None
             segment["weather_valid_time"] = record["valid_time"] if record else None
+            segment["weather_source"] = record.get("source") if record else None
             segment["status"] = "UNAVAILABLE"
             if record:
                 rain = record["rainfall_mm_hr"]
@@ -165,10 +224,12 @@ def assess_routes(candidates, engine, origin, destination, force_refresh=False):
     elif tied:
         summary += f" {basis.capitalize()} does not distinguish these road options."
     direct_distance = distance_m((origin["lat"], origin["lon"]), (destination["lat"], destination["lon"]))
+    weather_sources = sorted({item["source"] for item in weather.values() if item.get("source")})
     return {"routes": routes, "is_arrived": direct_distance <= 35, "dist_to_dest_m": round(direct_distance, 1),
         "query": {"origin": origin["name"], "destination": destination["name"],
             "origin_coords": {"lat": origin["lat"], "lon": origin["lon"]}, "dest_coords": {"lat": destination["lat"], "lon": destination["lon"]},
-            "is_live_weather": complete, "weather_source": "Open-Meteo numerical weather model", "data_mode": "LIVE_RAINFALL_SCREENING"},
+            "is_live_weather": complete, "weather_source": " + ".join(weather_sources) if weather_sources else None,
+            "weather_sources": weather_sources, "data_mode": "LIVE_RAINFALL_SCREENING"},
         "data_mode": "LIVE_RAINFALL_SCREENING", "prediction_valid": False, "safe_route_available": False,
         "screening_complete": complete, "recommended_route_id": None,
         "lowest_rainfall_route_id": best["id"] if best and not tied and not model_complete else None,
