@@ -19,6 +19,9 @@ def test_saved_run_survives_connection_and_has_consistent_layers(tmp_path, monke
             assert layer.json()['depth_m'] == saved['result']['snapshots'][lead]['depth_m']
             drains = client.get(f'/api/v1/forecasts/{run_id}/drainage?lead_minutes={lead}').json()
             assert drains['valid_time'] == layer.json()['valid_time']
+            roads = client.get(f'/api/v1/forecasts/{run_id}/roads.geojson?lead_minutes={lead}')
+            assert roads.status_code == 200
+            assert roads.json()['valid_time'] == layer.json()['valid_time']
             assert len(drains['features']) == 3
             geo = client.get(f'/api/v1/forecasts/{run_id}/depth.geojson?lead_minutes={lead}')
             assert geo.status_code == 200
@@ -27,4 +30,5 @@ def test_saved_run_survives_connection_and_has_consistent_layers(tmp_path, monke
             assert ring[0] == ring[-1]
             assert all(-180 <= x <= 180 and -90 <= y <= 90 for x,y in ring)
         assert client.get(f'/api/v1/forecasts/{run_id}/depth?lead_minutes=3').status_code == 404
+        assert client.get(f'/api/v1/forecasts/{run_id}/roads.geojson?lead_minutes=3').status_code == 404
         assert client.get('/api/v1/forecasts/00000000-0000-0000-0000-000000000000').status_code == 404
