@@ -13,14 +13,16 @@ async function showSavedLead(minute, fit=false){
   if(savedLayer)state.map?.removeLayer(savedLayer);savedLayer=null;
   $('saved-run-status').textContent=`Loading saved T+${minute} min…`;
   try{
-    const [depth,drainage]=await Promise.all([api(`/api/v1/forecasts/${id}/depth.geojson?lead_minutes=${minute}`),api(`/api/v1/forecasts/${id}/drainage?lead_minutes=${minute}`)]);
+    const [depth,drainage,roads]=await Promise.all([api(`/api/v1/forecasts/${id}/depth.geojson?lead_minutes=${minute}`),api(`/api/v1/forecasts/${id}/drainage?lead_minutes=${minute}`),api(`/api/v1/forecasts/${id}/roads.geojson?lead_minutes=${minute}`)]);
     if(generation!==savedGeneration)return;
     if(!state.map||typeof L==='undefined')throw Error('Map is unavailable.');
     const polygons=L.geoJSON(depth,{style:f=>({color:'#003776',weight:.6,fillColor:f.properties.depth_cm>30?'#b33f43':f.properties.depth_cm>5?'#ed963e':'#448dcc',fillOpacity:f.properties.depth_cm>0?.55:.08})});
     polygons.eachLayer(layer=>layer.bindPopup(`Saved model output · T+${minute} min<br>Depth: ${Number(layer.feature.properties.depth_cm).toFixed(2)} cm`));
     const nodes=L.geoJSON(drainage,{pointToLayer:(f,p)=>L.circleMarker(p,{radius:5,color:'#003776',fillColor:'#fff',fillOpacity:1})});
     nodes.eachLayer(layer=>{const p=layer.feature.properties;layer.bindPopup(`${esc(p.id)} · ${esc(p.kind)}<br>Node depth: ${p.depth_m===null?'Boundary node':Number(p.depth_m).toFixed(3)+' m'}`);});
-    savedLayer=L.layerGroup([polygons,nodes]).addTo(state.map);
+    const streets=L.geoJSON(roads,{style:f=>({color:f.properties.color,weight:5,opacity:.95})});
+    streets.eachLayer(layer=>{const p=layer.feature.properties;layer.bindPopup(`${esc(p.name)}<br>Model depth: ${p.depth_cm===null?'Unknown':Number(p.depth_cm).toFixed(1)+' cm'}<br>${esc(p.risk)} · T+${minute} min<br>Prototype model output; passability and official closure status unverified.`);});
+    savedLayer=L.layerGroup([polygons,streets,nodes]).addTo(state.map);
     if(fit&&polygons.getBounds().isValid())state.map.fitBounds(polygons.getBounds(),{padding:[30,30],maxZoom:18});
     $('saved-run-status').textContent=`Saved prototype · T+${minute} min · ${depth.valid_time}. Terrain: ${depth.terrain_source}. Overlay blue/orange/red represents model depth, not route safety.`;
     $('saved-run-timeline').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.minute)===minute)));

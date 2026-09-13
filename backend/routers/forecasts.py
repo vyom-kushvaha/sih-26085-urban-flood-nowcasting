@@ -6,8 +6,18 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from backend.services.forecast_store import get_run, save_run
 from backend.services.rainfall_pipeline import RainfallRun, run_rainfall
+from backend.services.forecast_roads import forecast_roads
 
 router = APIRouter(prefix='/api/v1/forecasts', tags=['Saved forecasts'])
+
+
+@router.get('/{run_id}/roads.geojson')
+def forecast_road_layer(run_id: UUID, lead_minutes: int = Query(..., ge=0, le=180)):
+    run = read_forecast(run_id)
+    snapshot = next((s for s in run['result']['snapshots'] if s['lead_minutes'] == lead_minutes), None)
+    if snapshot is None:
+        raise HTTPException(404, 'Lead time not saved for this run')
+    return {'run_id':str(run_id), **forecast_roads(run['result'], snapshot)}
 
 
 @router.get('/{run_id}/depth.geojson')
