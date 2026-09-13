@@ -109,6 +109,7 @@ def road_exposure(bounds, zoom, engine, force_refresh=False, verified_observatio
                 "observation_time": observation["observed_at"] if observation else None,
                 "observation_report_id": observation["report_id"] if observation else None,
                 "weather_valid_time": record["valid_time"] if record else None,
+                "weather_source": record.get("source") if record else None,
                 "length_m": round(length, 1), "safe_route_certified": False}})
     total_length = sum(item[4] for item in roads)
     pct = lambda value: round(value / total_length * 100, 1) if total_length else 0.0
@@ -117,6 +118,7 @@ def road_exposure(bounds, zoom, engine, force_refresh=False, verified_observatio
             "source": source.get("source"), "source_acquired_at": source.get("acquired_at"),
             "requested_bounds": bounds, "zoom": zoom, "road_count": len(features), "category_counts": counts,
             "weather_coverage_pct": pct(weather_length), "terrain_model_coverage_pct": pct(model_length),
+            "weather_sources": sorted({item["source"] for item in weather.values() if item.get("source")}),
             "verified_observation_coverage_pct": pct(observed_length),
             "verified_observation_road_count": sum(1 for feature in features if feature["properties"]["classification_basis"] == "VERIFIED_CITIZEN_OBSERVATION"),
             "safe_route_certified": False,
