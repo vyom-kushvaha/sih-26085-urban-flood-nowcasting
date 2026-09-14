@@ -1,0 +1,27 @@
+name: Verify release
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ENV: test
+      ALLOW_SQLITE_FALLBACK: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r requirements-deploy.txt pytest
+      - run: node scripts/check_frontend.js
+      - run: node scripts/test_saved_timeline.js
+      - run: python -m pytest -q

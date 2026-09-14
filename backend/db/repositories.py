@@ -27,14 +27,9 @@ class ForecastRepository:
     def save_run(self, inputs: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
         run_id = uuid.uuid4()
 
-        # We store the large result object as a file asset to avoid bloating the DB JSON column
-        asset_filename = f"{run_id}_result.json"
-        asset_path = RUNTIME_DATA_DIR / asset_filename
-
-        temporary_path = asset_path.with_suffix('.tmp')
-        with temporary_path.open('w', encoding='utf-8') as file_handle:
-            json.dump(result, file_handle, allow_nan=False)
-        temporary_path.replace(asset_path)
+        # Forecast inputs are bounded by the simulator. Persist the whole result
+        # transactionally so a free-host restart cannot orphan its layer files.
+        result = json.loads(json.dumps(result, allow_nan=False))
 
         # Create ForecastRun
         created_at = datetime.now(timezone.utc)
@@ -42,6 +37,7 @@ class ForecastRepository:
             id=run_id,
             status='COMPLETED',
             input_parameters=inputs,
+            result_payload=result,
             created_at=created_at,
             completed_at=datetime.now(timezone.utc)
         )
@@ -58,7 +54,7 @@ class ForecastRepository:
                 lead_minutes=lead_mins,
                 valid_time=valid_time,
                 type='DEPTH',
-                asset_path=str(asset_path),
+                asset_path=None,
                 metadata_json={'snapshot_index': snapshot_index}
             )
             self.session.add(layer)
@@ -67,7 +63,7 @@ class ForecastRepository:
             'run_id': str(run_id),
             'created_at': created_at.isoformat(),
             'status': 'COMPLETED',
-            'storage': 'POSTGRES_ASSET'
+            'storage': 'POSTGRES_JSON'
         }
 
     def get_run(self, run_id: str) -> Dict[str, Any]:
@@ -75,6 +71,10 @@ class ForecastRepository:
         db_run = self.session.execute(stmt).scalar_first()
         if not db_run:
             raise KeyError(str(run_id))
+        if db_run.result_payload is not None:
+            return {'run_id': str(run_id), 'created_at': db_run.created_at.isoformat(),
+                    'status': db_run.status, 'input': db_run.input_parameters,
+                    'result': db_run.result_payload}
         layers = self.session.execute(
             select(ForecastLayer).where(ForecastLayer.run_id == uuid.UUID(run_id))
         ).scalars().all()
@@ -95,6 +95,13 @@ class ForecastRepository:
             'input': db_run.input_parameters,
             'result': result,
         }
+
+    def list_runs(self, limit=20, offset=0):
+        rows = self.session.execute(select(ForecastRun.id, ForecastRun.created_at, ForecastRun.status)
+            .where(ForecastRun.status == 'COMPLETED')
+            .order_by(ForecastRun.created_at.desc(), ForecastRun.id.desc()).limit(limit).offset(offset))
+        return [{'run_id': str(row.id), 'created_at': row.created_at.isoformat(), 'status': row.status}
+                for row in rows]
 
 
 class RainfallRepository:

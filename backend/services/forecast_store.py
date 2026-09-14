@@ -54,3 +54,15 @@ def get_run(run_id):
     with get_db_session() as session:
         repo = ForecastRepository(session)
         return repo.get_run(str(run_id))
+
+
+def list_runs(limit=20, offset=0):
+    if not is_db_available():
+        if not settings.sqlite_fallback_allowed:
+            raise RuntimeError('Forecast storage unavailable')
+        with sqlite_connection() as db:
+            rows = db.execute('SELECT id, created FROM runs ORDER BY created DESC, id DESC LIMIT ? OFFSET ?',
+                              (limit, offset)).fetchall()
+        return [{'run_id': row[0], 'created_at': row[1], 'status': 'COMPLETED'} for row in rows]
+    with get_db_session() as session:
+        return ForecastRepository(session).list_runs(limit, offset)

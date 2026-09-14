@@ -4,25 +4,27 @@ const API_BASE = (window.RAKSHAK_API_BASE || location.origin).replace(/\/$/, '')
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MUMBAI_DEFAULT = {lat:19.10,lng:72.87};
+const DEMO_DEFAULT = {lat:19.0434,lng:72.8614};
 const LOCAL_MAP_ZOOM = 15;
 const CITY_MAP_ZOOM = 11;
-const state = {hour:0,position:null,map:null,routeData:null,selected:null,forecast:null,request:0,forecastRequest:0,exposureRequest:0,forecastDetailsOpen:false,photo:null,reportPosition:null};
+const DEMO_MAP_ZOOM = 16;
+const state = {hour:2,demoMode:true,position:null,map:null,routeData:null,selected:null,forecast:null,request:0,forecastRequest:0,exposureRequest:0,forecastDetailsOpen:false,photo:null,reportPosition:null};
 const colours = {Low:'#27865d',Moderate:'#d4ad2f',High:'#e47e32',Critical:'#cb4545',Unavailable:'#64748b'};
 const hourLabel = h => ['NOW','+1 HOUR','+2 HOURS','+3 HOURS'][h];
 const depthRisk = d => !Number.isFinite(d) ? 'Unavailable' : d<=5?'Low':d<=15?'Moderate':d<=30?'High':'Critical';
 const withinMumbai = p => p && p.lat>=18.89 && p.lat<=19.30 && p.lng>=72.77 && p.lng<=72.99;
-async function api(path,options={}){const controller=new AbortController();const longRunning=path.includes('/routing/')||path.includes('/roads/exposure');const timeout=setTimeout(()=>controller.abort(),longRunning?60000:20000);try{const response=await fetch(API_BASE+path,{...options,signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Service unavailable');return data;}finally{clearTimeout(timeout);}}
+async function api(path,options={}){const controller=new AbortController();const longRunning=path.includes('/routing/')||path.includes('/roads/');const timeout=setTimeout(()=>controller.abort(),longRunning?60000:20000);try{const response=await fetch(API_BASE+path,{...options,signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Service unavailable');return data;}finally{clearTimeout(timeout);}}
 function nearby(p){if(!state.map)return;state.map.setView([p.lat,p.lng],LOCAL_MAP_ZOOM,{animate:false});}
 function initMap(){
   if(typeof L==='undefined'){$('map-message').textContent='Map library unavailable. Check your internet connection and reload.';return;}
-  state.map=L.map('map',{zoomControl:false,zoomAnimation:false,fadeAnimation:false,preferCanvas:true,scrollWheelZoom:true,touchZoom:true,bounceAtZoomLimits:false,wheelDebounceTime:80,wheelPxPerZoomLevel:120}).setView([MUMBAI_DEFAULT.lat,MUMBAI_DEFAULT.lng],CITY_MAP_ZOOM);
+  state.map=L.map('map',{zoomControl:false,zoomAnimation:false,fadeAnimation:false,preferCanvas:true,scrollWheelZoom:true,touchZoom:true,bounceAtZoomLimits:false,wheelDebounceTime:80,wheelPxPerZoomLevel:120}).setView([DEMO_DEFAULT.lat,DEMO_DEFAULT.lng],DEMO_MAP_ZOOM);
   installMapGestures(state.map);
   initBasemap();
   L.control.zoom({position:'bottomright'}).addTo(state.map);
   loadMumbaiBoundary();
   const exposurePane=state.map.createPane('roadExposure');exposurePane.style.zIndex=405;state.roadRenderer=L.canvas({pane:'roadExposure',padding:.5});
   state.exposure=L.layerGroup().addTo(state.map);state.routes=L.layerGroup().addTo(state.map);state.markers=L.layerGroup().addTo(state.map);
-  state.map.on('click',e=>loadForecast(e.latlng));
+  state.map.on('click',e=>{if(!state.demoMode)loadForecast(e.latlng);});
   state.map.on('moveend zoomend',scheduleVisibleRoadExposure);
   scheduleVisibleRoadExposure();
 }
@@ -68,10 +70,22 @@ function useLocation(forReport=false){
   },()=>{message.textContent='Location unavailable. Allow location access or enter your starting point.';},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
 }
 function updatePosition(){if(!state.map||!state.position)return;if(state.userMarker)state.userMarker.setLatLng(state.position);else state.userMarker=L.marker(state.position,{icon:L.divIcon({className:'',html:'<div class="current-dot"></div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(state.map).bindPopup('Your current location');}
-function showMumbaiDefault(){state.map?.setView([MUMBAI_DEFAULT.lat,MUMBAI_DEFAULT.lng],CITY_MAP_ZOOM,{animate:false});$('origin').value='Hindmata, Mumbai';$('destination').value='Dadar, Mumbai';$('map-message').textContent='Showing Greater Mumbai arterial-road screening.';scheduleVisibleRoadExposure();}
-function renderTimeline(){$('forecast-time-label').textContent=state.hour===0?'Now':`In ${state.hour} ${state.hour===1?'hour':'hours'}`;$('timeline').innerHTML=[0,1,2,3].map(h=>`<button type="button" data-hour="${h}" aria-label="${h===0?'Current forecast':`Forecast in ${h} ${h===1?'hour':'hours'}`}" aria-pressed="${state.hour===h}">${h===0?'Now':`+${h} ${h===1?'hour':'hours'}`}</button>`).join('');$('timeline').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.hour=Number(b.dataset.hour);renderTimeline();renderForecast();});}
+function showMumbaiDefault(){const centre=state.demoMode?DEMO_DEFAULT:MUMBAI_DEFAULT,zoom=state.demoMode?DEMO_MAP_ZOOM:CITY_MAP_ZOOM;state.map?.setView([centre.lat,centre.lng],zoom,{animate:false});$('origin').value='Hindmata, Mumbai';$('destination').value='Dadar, Mumbai';$('map-message').textContent=state.demoMode?'Showing the Sion demo area at street level. Pan or zoom to inspect other Mumbai roads.':'Showing Greater Mumbai live road screening.';scheduleVisibleRoadExposure();}
+function renderTimeline(){
+  const saved=state.savedManifest;
+  $('forecast-time-label').textContent=saved?`Saved T+${state.savedMinute??0} min`:state.hour===0?'Now':`In ${state.hour} ${state.hour===1?'hour':'hours'}`;
+  $('timeline').innerHTML=[0,1,2,3].map(h=>{
+    const available=!saved||saved.snapshots.some(s=>s.lead_minutes===h*60);
+    return `<button type="button" data-hour="${h}" ${available?'':'disabled'} aria-label="${saved?'Saved model':'Forecast'} +${h} hours${available?'':' unavailable'}" aria-pressed="${saved?state.savedMinute===h*60:state.hour===h}">${h===0?(saved?'T+0':'Now'):`+${h} ${h===1?'hour':'hours'}`}</button>`;
+  }).join('');
+  $('timeline').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    if(state.savedManifest){showSavedLead(Number(b.dataset.hour)*60);return;}
+    state.hour=Number(b.dataset.hour);renderTimeline();if(state.demoMode)scheduleVisibleRoadExposure();else renderForecast();
+  });
+}
 function renderSources(){const p=state.forecast?.data_provenance;$('sources').innerHTML=[['Rainfall source',p?.weather_source],['Terrain source',state.forecast?.terrain?.dem_status],['Drainage source',p?.drainage],['Last updated',null],['Model status','Prototype · spatial validation pending'],['Selected forecast',hourLabel(state.hour)]].map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v||'Not Available')}</dd>`).join('');}
 async function loadForecast(p, reveal=true){
+  if(state.savedManifest)return;
   state.forecastDetailsOpen=reveal;
   const request=++state.forecastRequest;state.forecast=null;renderSources();
   if(!withinMumbai(p)){$('location-details').hidden=true;return;}
@@ -91,13 +105,14 @@ async function findRoute(event){
   event?.preventDefault();const origin=$('origin').value.trim(),destination=$('destination').value.trim();if(!origin||!destination){$('route-message').textContent='Enter both a starting point and destination.';return;}
   const request=++state.request;$('find-route').disabled=true;$('route-message').textContent='Finding roads, fetching live rainfall and calculating exposure…';state.routeData=null;state.selected=null;renderRoutes();
   const query=new URLSearchParams({origin,destination});if(origin==='Current Location'){if(!state.position){$('route-message').textContent='Use My Location first, or enter a starting point.';$('find-route').disabled=false;return;}query.set('origin_lat',state.position.lat);query.set('origin_lon',state.position.lng);}
-  try{const data=await api('/api/v1/routing/safe-route?'+query);if(request!==state.request)return;state.routeData=data;state.selected=data.routes?.find(r=>r.is_recommended)?.id||data.routes?.[0]?.id;renderRoutes();}
+  try{const data=await api('/api/v1/routing/safe-route?'+query);if(request!==state.request)return;state.routeData=data;state.selected=data.routes?.find(r=>r.is_recommended)?.id||data.routes?.[0]?.id;if(state.savedManifest)await assessSavedCandidates();else renderRoutes();}
   catch(e){if(request!==state.request)return;$('route-message').textContent='Route unavailable. '+e.message;}
   finally{if(request===state.request)$('find-route').disabled=false;}
 }
 function renderRoutes(){
   state.routes?.clearLayers();state.markers?.clearLayers();const data=state.routeData;$('route-options').innerHTML='';
   if(!data)return;
+  if(state.savedManifest){renderSavedRoutes();return;}
   if(data.data_mode==='LIVE_RAINFALL_SCREENING'){renderLiveRoutes(data);return;}
   const assessed=data.prediction_valid===true;
   if(assessed&&data.safe_route_available)$('route-message').textContent='Flood-safe route assessment complete. The recommended corridor has the lowest evaluated flood exposure.';
@@ -145,27 +160,42 @@ function routeInstruction(step){
 function riskDisplayName(category){return ({SAFE:'Low',MODERATE:'Moderate',DANGER:'Critical'})[category]||category;}
 function heading(k,title,description){return `<div class="page-heading"><div><div class="eyebrow">${k}</div><h1>${title}</h1><p>${description}</p></div></div>`;}
 function filters(){return '<div class="filters"><label class="field-label">STATE<select id="state-filter"><option>Maharashtra</option><option>Delhi</option><option>Tamil Nadu</option></select></label><label class="field-label">CITY<select id="city-filter"><option>Mumbai</option></select></label></div>';}
-function dashboard(municipal=false){
-  $('content-page').innerHTML=heading(municipal?'MUNICIPALITY WORKSPACE':'CITY OVERVIEW',municipal?'Municipality Dashboard':'A pulse on the city.',municipal?'Monitor roads, drainage and citizen reports.':'Flood information and official updates, in one place.')+(municipal?'<div class="preview-banner">Interface preview · Authentication is not connected. No official records or publishing access.</div>':'')+filters()+`<div class="panel status-row"><div><small id="city-label">MUMBAI · CURRENT STATUS</small><strong id="city-status">Assessment unavailable</strong></div><div><small>HIGH-RISK AREAS</small><strong>—</strong></div><div><small>LAST UPDATED</small><strong>Not Available</strong></div><a href="#/map" class="small-link">View on Live Map ↗</a></div><div class="columns"><div><div class="panel"><h2>${municipal?'Critical Roads':'High Alert Areas'}</h2><div class="table-head"><span>Location</span><span>Depth</span><span>Risk</span><span>Forecast</span></div><div class="empty">City-wide flood data is not available yet.<br>Areas will appear when validated forecasts are connected.</div></div><div class="panel"><h2>${municipal?'Critical Drainage Locations':'Model Flood Alerts'}</h2><div class="empty">${municipal?'Drainage stress data is not available.':'Model alert feed is not connected.'}</div></div></div><div><div class="panel"><h2>Municipal Notices <span class="badge">OFFICIAL</span></h2><div class="empty">Municipal notice service is not connected.</div>${municipal?'<button class="secondary" id="create-notice">Create notice</button>':''}</div>${municipal?'<div class="panel"><h2>Citizen Reports</h2><div class="empty">Report service is not connected.</div><small>Reported → Verified → Action Taken → Resolved</small><label class="field-label">WARD / AREA<select disabled><option>Ward data unavailable</option></select></label></div>':'<div class="panel"><h2>See something on your street?</h2><p class="muted">Help the municipality understand local conditions.</p><a class="small-link" href="#/report">Report flooding →</a></div>'}</div></div>`;
-  $('state-filter').onchange=()=>{const cities={Maharashtra:'Mumbai',Delhi:'New Delhi','Tamil Nadu':'Chennai'};const city=cities[$('state-filter').value];$('city-filter').innerHTML=`<option>${city}</option>`;$('city-label').textContent=city.toUpperCase()+' · CURRENT STATUS';$('city-status').textContent=city==='Mumbai'?'Assessment unavailable':'Coverage unavailable';};
-  if(municipal)$('create-notice').onclick=()=>{const section=document.createElement('section');section.className='panel';section.innerHTML='<h2>Create Notice</h2><label class="field-label">Title<input></label><label class="field-label">Location<input></label><label class="field-label">Message<textarea></textarea></label><label class="field-label">Severity<select><option>Advisory</option><option>Warning</option><option>Closure</option></select></label><button disabled class="primary">Publish Notice</button><p class="muted">Publishing requires the municipal authentication and notices service.</p>';$('content-page').append(section);section.scrollIntoView({behavior:'smooth'});};
-}
+function dashboard(municipal=false){return renderCivicDashboard(municipal);}
 function report(){
-  $('content-page').innerHTML='<div class="narrow">'+heading('CITIZEN REPORT','Tell us what you see.','Share a location and observed water level on your street.')+'<form id="report-form" class="panel"><h2>Report a local issue</h2><label class="field-label">LOCATION</label><button type="button" class="secondary" id="report-gps">◎ Use Live Location</button><p class="muted" id="report-location">Location has not been selected.</p><label class="field-label">PROBLEM</label><div class="problem-options">'+['Waterlogging','Road Blocked','Drainage Issue','Other'].map((p,i)=>`<label><input type="radio" name="problem" value="${p}" ${i===0?'checked':''}>${p}</label>`).join('')+'</div><label class="field-label" for="report-depth">OBSERVED WATER DEPTH · CM (OPTIONAL)</label><input id="report-depth" type="number" min="0" max="300" step="0.5" placeholder="Example: 12"><label class="field-label" for="report-photo">CAMERA · TAKE LIVE PHOTO</label><input id="report-photo" type="file" accept="image/*" capture="environment"><img id="photo-preview" class="photo-preview" alt="Captured report photo" hidden><label class="field-label" for="report-message">MESSAGE (OPTIONAL)</label><textarea id="report-message" placeholder="Describe what is happening…"></textarea><button type="button" class="secondary" id="save-draft">Save draft on this device</button><button id="submit-report" class="primary">Submit Report</button><p id="report-status" class="muted" role="status">Submitted reports remain unverified until municipal review. Photos stay on this device.</p></form></div>';
+  $('content-page').innerHTML='<div class="narrow">'+heading('CITIZEN REPORT','Tell us what you see.','Share a location and observed water level on your street.')+'<form id="report-form" class="panel"><h2>Report a local issue</h2><label class="field-label">LOCATION</label><button type="button" class="secondary" id="report-gps">◎ Use Live Location</button><p class="muted" id="report-location">Location has not been selected.</p><label class="field-label">PROBLEM</label><div class="problem-options">'+['Waterlogging','Road Blocked','Drainage Issue','Other'].map((p,i)=>`<label><input type="radio" name="problem" value="${p}" ${i===0?'checked':''}>${p}</label>`).join('')+'</div><label class="field-label" for="report-depth">OBSERVED WATER DEPTH · CM (OPTIONAL)</label><input id="report-depth" type="number" min="0" max="300" step="0.5" placeholder="Example: 12"><label class="field-label" for="report-photo">CAMERA · TAKE LIVE PHOTO</label><input id="report-photo" type="file" accept="image/*" capture="environment"><img id="photo-preview" class="photo-preview" alt="Captured report photo" hidden><label class="field-label" for="report-message">MESSAGE (OPTIONAL)</label><textarea id="report-message" placeholder="Describe what is happening…"></textarea><button type="button" class="secondary" id="save-draft">Save draft on this device</button><button id="submit-report" class="primary">Submit Report</button><p id="report-status" class="muted" role="status">Submitted reports remain unverified until municipal review. Attached photos are resized, stored privately and shared with municipal reviewers.</p></form></div>';
   if(state.reportPosition)$('report-location').textContent=`${state.reportPosition.lat}, ${state.reportPosition.lng}`;
   $('report-gps').onclick=()=>useLocation(true);
   $('report-photo').onchange=e=>{const file=e.target.files[0];if(!file)return;if(!file.type.startsWith('image/')||file.size>10*1024*1024){$('report-status').textContent='Choose an image smaller than 10 MB.';return;}if(state.photo)URL.revokeObjectURL(state.photo);state.photo=URL.createObjectURL(file);$('photo-preview').src=state.photo;$('photo-preview').hidden=false;};
   $('save-draft').onclick=()=>{if(!state.reportPosition){$('report-status').textContent='Select your location first.';return;}try{localStorage.setItem('rakshak-report-draft',JSON.stringify({location:state.reportPosition,problem:document.querySelector('[name=problem]:checked').value,message:$('report-message').value}));$('report-status').textContent='Draft saved on this device. Photo is not saved. Report has not been submitted.';}catch{$('report-status').textContent='Device storage is unavailable.';}};
   try{const draft=JSON.parse(localStorage.getItem('rakshak-report-draft')||'null');if(draft){state.reportPosition=draft.location;$('report-location').textContent=`Saved location: ${draft.location.lat}, ${draft.location.lng}`;$('report-message').value=draft.message;document.querySelectorAll('[name=problem]').forEach(e=>e.checked=e.value===draft.problem);}}catch{}
-  $('report-form').onsubmit=async e=>{e.preventDefault();if(!state.reportPosition){$('report-status').textContent='Select your location first.';return;}const problem=document.querySelector('[name=problem]:checked').value,rawDepth=$('report-depth').value;const payload={lat:state.reportPosition.lat,lon:state.reportPosition.lng,problem,message:$('report-message').value};if(rawDepth!==''&&problem==='Waterlogging')payload.water_depth_cm=Number(rawDepth);$('submit-report').disabled=true;$('report-status').textContent='Submitting report…';try{const saved=await api('/api/v1/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});localStorage.removeItem('rakshak-report-draft');$('report-status').textContent=`Report received · ${saved.id}. It will affect road colors only after municipal verification.`;$('report-form').reset();state.reportPosition=null;$('report-location').textContent='Location has not been selected.';}catch(error){$('report-status').textContent='Report could not be submitted. '+error.message;}finally{$('submit-report').disabled=false;}};
+  $('report-form').onsubmit=async e=>{
+    e.preventDefault();const form=e.target,status=$('report-status'),button=$('submit-report');
+    if(!state.reportPosition){status.textContent='Select your location first.';return;}
+    const problem=document.querySelector('[name=problem]:checked').value,rawDepth=$('report-depth').value;
+    const payload={lat:state.reportPosition.lat,lon:state.reportPosition.lng,problem,message:$('report-message').value};
+    if(rawDepth!==''&&problem==='Waterlogging')payload.water_depth_cm=Number(rawDepth);
+    const file=$('report-photo').files[0];button.disabled=true;status.textContent='Preparing and submitting report…';
+    try{
+      payload.photo=await prepareReportPhoto(file);
+      const saved=await api('/api/v1/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      try{localStorage.removeItem('rakshak-report-draft');}catch{}
+      status.textContent=`Report received · ${saved.id}. Municipal review is pending.${saved.photo_available?' Photo stored privately.':''}`;
+      form.reset();state.reportPosition=null;
+      if(state.photo){URL.revokeObjectURL(state.photo);state.photo=null;}
+      if($('report-location'))$('report-location').textContent='Location has not been selected.';
+      if($('photo-preview'))$('photo-preview').hidden=true;
+    }catch(error){status.textContent='Report could not be submitted. '+error.message;}
+    finally{button.disabled=false;}
+  };
 }
 function about(){$('content-page').innerHTML=heading('ABOUT R.A.K.S.H.A.K.','Understand the water. Find a way.','Real-time Assessment &amp; Knowledge System for Hydrological Alerts · SIH 26085')+'<div class="panel"><h2>From rainfall to the road ahead</h2><p class="muted">A platform designed to connect rainfall, terrain and drainage information into local flood forecasts and journey planning. Mumbai is the initial coverage area.</p><div class="flow">'+['Rainfall','Terrain','Surface Water','Drainage Network','Flood Prediction','0–3 Hour Forecast','Flood-Safe Route'].map((p,i)=>`${i?'→':''}<span>${p}</span>`).join('')+'</div></div><div class="panel"><h2>What the platform is being built for</h2><div class="feature-list">'+['Street-level flood prediction','Water-depth estimation','Drainage-aware modelling','0–3 hour forecasting','Flood-aware routing','Municipality monitoring'].map(p=>`<div>↗ ${p}</div>`).join('')+'</div><p class="muted">Current status: prototype. Validated spatial forecasts and municipal services are pending integration. Missing information is shown as unavailable.</p></div>';}
-function login(){$('content-page').innerHTML='<div class="narrow">'+heading('OFFICIAL ACCESS','Municipality Portal','A shared workspace for local response teams.')+'<form id="login-form" class="panel"><label class="field-label" for="login-city">CITY</label><select id="login-city"><option>Mumbai</option></select><label class="field-label" for="official-id">OFFICIAL ID</label><input id="official-id" autocomplete="username" placeholder="Enter official ID"><label class="field-label" for="password">PASSWORD</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter password"><button class="primary" disabled>Login</button><p class="muted">Official authentication is not connected yet.</p><a class="small-link" href="#/municipality">Preview dashboard interface →</a></form></div>';$('login-form').onsubmit=e=>e.preventDefault();}
-function navigate(){const page=(location.hash||'#/map').replace('#/','');const known=['map','dashboard','report','about','login','municipality'];if(!known.includes(page)){location.hash='#/map';return;}document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#/'+page));$('map-page').hidden=page!=='map';$('content-page').hidden=page==='map';if(page==='map'){setTimeout(()=>state.map?.invalidateSize(),0);}else{({dashboard:()=>dashboard(),report,about,login,municipality:()=>dashboard(true)})[page]();}document.title=`R.A.K.S.H.A.K. · ${page==='map'?'Live Map':page[0].toUpperCase()+page.slice(1)}`;}
+function login(){renderMunicipalLogin();}
+function navigate(){civicGeneration++;clearPrivatePhotos();const page=(location.hash||'#/map').replace('#/','');const known=['map','dashboard','report','about','login','municipality'];if(!known.includes(page)){location.hash='#/map';return;}document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#/'+page));$('map-page').hidden=page!=='map';$('content-page').hidden=page==='map';if(page==='map'){setTimeout(()=>state.map?.invalidateSize(),0);}else{({dashboard:()=>dashboard(),report,about,login,municipality:()=>dashboard(true)})[page]();}document.title=`R.A.K.S.H.A.K. · ${page==='map'?'Live Map':page[0].toUpperCase()+page.slice(1)}`;}
 renderTimeline();renderSources();initMap();navigate();
 document.querySelector('.skip').onclick=e=>{e.preventDefault();$('main').focus();};
 document.querySelector('.hero-action').onclick=e=>{e.preventDefault();$('route-form').scrollIntoView({behavior:'smooth',block:'center'});$('origin').focus({preventScroll:true});};
 window.addEventListener('hashchange',navigate);
 $('route-form').onsubmit=findRoute;$('mumbai-default').onclick=showMumbaiDefault;
+$('mode-demo').onclick=()=>setMapMode(true);$('mode-live').onclick=()=>setMapMode(false);
 // Mumbai is deliberately the landing area: this prototype has Mumbai-only flood data.
 // Journey options appear only after the user submits the planner.

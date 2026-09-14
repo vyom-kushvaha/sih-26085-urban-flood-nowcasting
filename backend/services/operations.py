@@ -47,6 +47,7 @@ def serialize(record):
     result = {"id": record.id, "status": record.status, "created_at": record.created_at,
               "revision": record.revision, **record.payload}
     if record.kind == "report":
+        result['photo_available'] = bool(result.pop('photo', None))
         result["verified"] = record.status in {"VERIFIED", "ACTION_TAKEN", "RESOLVED"}
     return result
 

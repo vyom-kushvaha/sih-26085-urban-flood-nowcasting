@@ -1,4 +1,4 @@
-"""Automatic visible-area screening over acquired Greater Mumbai arterial roads."""
+"""Automatic visible-area screening over acquired Greater Mumbai drivable roads."""
 import json
 import math
 from functools import lru_cache
@@ -12,7 +12,8 @@ ROADS_PATH = ROOT / "data/processed/mumbai_major_roads.json"
 MUMBAI_BOUNDS = {"south": 18.89, "west": 72.77, "north": 19.30, "east": 72.99}
 ROAD_LEVELS = {"motorway": 0, "motorway_link": 0, "trunk": 0, "trunk_link": 0,
     "primary": 1, "primary_link": 1, "secondary": 2, "secondary_link": 2,
-    "tertiary": 3, "tertiary_link": 3}
+    "tertiary": 3, "tertiary_link": 3, "unclassified": 4, "residential": 4,
+    "living_street": 4, "service": 5, "road": 5}
 
 
 @lru_cache(maxsize=1)
@@ -32,7 +33,8 @@ def _intersects(coordinates, bounds):
 
 def visible_roads(bounds, zoom):
     ways, metadata = road_ways()
-    max_level = 1 if zoom <= 11 else 2 if zoom <= 13 else 3
+    # Keep city-wide views readable and progressively reveal smaller streets.
+    max_level = 1 if zoom <= 11 else 2 if zoom <= 13 else 3 if zoom == 14 else 4 if zoom == 15 else 5
     found = []
     for way in ways:
         coordinates = way.get("coordinates", [])
@@ -114,7 +116,7 @@ def road_exposure(bounds, zoom, engine, force_refresh=False, verified_observatio
     total_length = sum(item[4] for item in roads)
     pct = lambda value: round(value / total_length * 100, 1) if total_length else 0.0
     return {"type": "FeatureCollection", "features": features,
-        "metadata": {"coverage": "GREATER_MUMBAI_ARTERIAL_OSM", "coverage_bounds": MUMBAI_BOUNDS,
+        "metadata": {"coverage": "GREATER_MUMBAI_DRIVABLE_OSM", "coverage_bounds": MUMBAI_BOUNDS,
             "source": source.get("source"), "source_acquired_at": source.get("acquired_at"),
             "requested_bounds": bounds, "zoom": zoom, "road_count": len(features), "category_counts": counts,
             "weather_coverage_pct": pct(weather_length), "terrain_model_coverage_pct": pct(model_length),
@@ -124,6 +126,6 @@ def road_exposure(bounds, zoom, engine, force_refresh=False, verified_observatio
             "safe_route_certified": False,
             "blue_meaning": "Low live rainfall signal; flood safety unverified",
             "green_meaning": "Low modelled depth only when validated inputs cover the segment",
-            "limitations": ["Coverage includes arterial OSM road classes, not every residential lane.",
+            "limitations": ["Coverage follows mapped OSM drivable ways and depends on OpenStreetMap completeness.",
                 "Verified citizen depth reports affect roads within 120 metres for three hours.",
                 "Red/orange/blue are screening signals, not official closures or safety certificates."]}}

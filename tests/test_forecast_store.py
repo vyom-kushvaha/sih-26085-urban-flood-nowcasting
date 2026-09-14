@@ -6,12 +6,26 @@ from test_rainfall_pipeline import data
 
 
 def test_saved_run_survives_connection_and_has_consistent_layers(tmp_path, monkeypatch):
+    # Exercise local persistence deterministically, independent of a developer DB.
+    monkeypatch.setattr('backend.services.forecast_store.is_db_available', lambda: False)
     monkeypatch.setenv('FORECAST_DB_PATH',str(tmp_path/'runs.sqlite3'))
     with TestClient(app) as client:
         response = client.post('/api/v1/forecasts',json=data())
         assert response.status_code == 201
         run_id = response.json()['run_id']
         saved = get_run(run_id)
+        manifest = client.get(f'/api/v1/forecasts/{run_id}/map')
+        assert manifest.status_code == 200
+        manifest = manifest.json()
+        assert manifest['is_live'] is False
+        assert manifest['safe_route_certified'] is False
+        assert [s['lead_minutes'] for s in manifest['snapshots']] == [0, 1, 2]
+        assert 'result' not in manifest
+        for snapshot in manifest['snapshots']:
+            for url in snapshot['layers'].values():
+                response = client.get(url)
+                assert response.status_code == 200
+                assert response.json()['valid_time'] == snapshot['valid_time']
         assert saved['input'] == RainfallRun(**data()).model_dump(mode='json')
         for lead in [0,1,2]:
             layer = client.get(f'/api/v1/forecasts/{run_id}/depth?lead_minutes={lead}')
@@ -32,3 +46,5 @@ def test_saved_run_survives_connection_and_has_consistent_layers(tmp_path, monke
         assert client.get(f'/api/v1/forecasts/{run_id}/depth?lead_minutes=3').status_code == 404
         assert client.get(f'/api/v1/forecasts/{run_id}/roads.geojson?lead_minutes=3').status_code == 404
         assert client.get('/api/v1/forecasts/00000000-0000-0000-0000-000000000000').status_code == 404
+        assert client.get('/api/v1/forecasts/00000000-0000-0000-0000-000000000000/map').status_code == 404
+        assert client.get('/api/v1/forecasts/not-a-uuid/map').status_code == 422

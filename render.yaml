@@ -5,20 +5,26 @@ services:
     region: singapore
     plan: free
     branch: main
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: python scripts/start_production.py
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeployTrigger: checksPass
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: 3.12.14
       - key: ENV
-        value: development
+        value: production
       - key: ALLOW_SQLITE_FALLBACK
-        value: "true"
-      - key: FORECAST_DB_PATH
-        value: /tmp/urban-flood/forecasts.sqlite3
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: MUNICIPAL_API_TOKEN
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: ""
       - key: FORECAST_ASSETS_PATH
         value: /tmp/urban-flood/runs
       - key: RAINFALL_STORE_PATH
         value: /tmp/urban-flood/rainfall
+      - key: PYTHONUNBUFFERED
+        value: "1"

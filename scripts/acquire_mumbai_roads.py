@@ -1,4 +1,4 @@
-"""Acquire a compact, reproducible OSM arterial-road extract for Greater Mumbai."""
+"""Acquire a compact, reproducible OSM drivable-road extract for Greater Mumbai."""
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -7,7 +7,11 @@ from pathlib import Path
 import requests
 
 BOUNDS = (18.89, 72.77, 19.30, 72.99)  # south, west, north, east
-HIGHWAYS = "motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link"
+HIGHWAYS = (
+    "motorway|motorway_link|trunk|trunk_link|primary|primary_link|"
+    "secondary|secondary_link|tertiary|tertiary_link|unclassified|"
+    "residential|living_street|service|road"
+)
 SERVERS = ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter")
 OUTPUT = Path("data/processed/mumbai_major_roads.json")
 
@@ -31,7 +35,7 @@ def acquire():
                     "name": tags.get("name") or tags.get("name:en"), "oneway": tags.get("oneway"),
                     "coordinates": coordinates})
             if not ways:
-                raise ValueError("Overpass returned no arterial roads")
+                raise ValueError("Overpass returned no drivable roads")
             payload = {"metadata": {"source": "OpenStreetMap Overpass API", "source_url": server,
                 "license": "ODbL 1.0; © OpenStreetMap contributors", "acquired_at": datetime.now(timezone.utc).isoformat(),
                 "bounds": {"south": south, "west": west, "north": north, "east": east},
