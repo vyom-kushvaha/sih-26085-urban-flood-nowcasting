@@ -64,10 +64,13 @@ def run_rainfall(request: RainfallRun):
     initial = state['balance']['initial_m3']
     runoff = outfall = 0.0
     remapping = []
+    exchange = {key: {'intake_m3': 0.0, 'surcharge_returned_m3': 0.0}
+                for key in domain.exchange}
 
     def snapshot(minute):
         outputs.append({'lead_minutes':minute, 'valid_time':(request.issue_time+timedelta(minutes=minute)).isoformat(),
-                        'depth_m':state['depth_m'], 'node_depth_m':state['node_depth_m']})
+                        'depth_m':state['depth_m'], 'node_depth_m':state['node_depth_m'],
+                        'exchange_totals': {key: dict(value) for key, value in exchange.items()}})
 
     snapshot(0)
     for frame in request.frames:
@@ -89,6 +92,11 @@ def run_rainfall(request: RainfallRun):
                 'drainage':domain.drainage.model_copy(update={'duration_s':duration,
                     'initial_depth_m':state['node_depth_m']})})
             state = simulate_coupled(current)
+            if state['exchange_history']:
+                final_exchange = state['exchange_history'][-1]
+                for key in exchange:
+                    for metric in exchange[key]:
+                        exchange[key][metric] += final_exchange[metric][key]
             runoff += state['balance']['runoff_m3']
             outfall += state['balance']['outfall_m3']
             if end in request.output_minutes or end == request.frames[-1].end_minute:

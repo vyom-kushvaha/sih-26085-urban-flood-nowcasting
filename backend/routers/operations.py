@@ -7,7 +7,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel, ConfigDict, Field, AwareDatetime, model_validator
+from pydantic import BaseModel, ConfigDict, Field, AwareDatetime, model_validator, field_validator
+from fastapi.responses import Response
+import base64
+from backend.services.report_photos import normalize_photo
 
 from backend.core.config import settings
 from backend.services import operations as store
@@ -49,6 +52,12 @@ class Report(Input):
     message: str = Field(default="", max_length=2000)
     water_depth_cm: float | None = Field(default=None, ge=0, le=300)
     observed_at: AwareDatetime | None = None
+    photo: str | None = Field(default=None, max_length=340000)
+
+    @field_validator('photo')
+    @classmethod
+    def validate_photo(cls, value):
+        return normalize_photo(value)
 
     @model_validator(mode="after")
     def depth_only_for_waterlogging(self):
@@ -110,6 +119,16 @@ def admin_session():
 @router.get("/admin/reports", dependencies=[Depends(municipal)])
 def reports(limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0), db=Depends(database)):
     return {"items": store.records(db, "report", limit, offset)}
+
+
+@router.get('/admin/reports/{record_id}/photo', dependencies=[Depends(municipal)])
+def report_photo(record_id: UUID, db=Depends(database)):
+    record = db.get(store.CivicRecord, str(record_id))
+    if record is None or record.kind != 'report' or not record.payload.get('photo'):
+        raise HTTPException(404, 'Photo not found')
+    raw = base64.b64decode(record.payload['photo'].split(',', 1)[1])
+    return Response(raw, media_type='image/jpeg', headers={'Cache-Control': 'no-store',
+                    'X-Content-Type-Options': 'nosniff'})
 
 
 @router.patch("/admin/reports/{record_id}", dependencies=[Depends(municipal)])

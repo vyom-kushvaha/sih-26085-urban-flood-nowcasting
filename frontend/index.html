@@ -12,15 +12,17 @@
   <link rel="stylesheet" href="/static/journey.css?v=20260913-full-hero-slides">
   <!-- Reversible theme: restore instructions are documented in docs/THEME_RESTORE.md. -->
   <link rel="stylesheet" href="/static/palette.css?v=20260913-clean-forest">
-  <link rel="stylesheet" href="/static/identity.css?v=20260914-cool-indigo">
+  <link rel="stylesheet" href="/static/identity.css?v=20260914-demo-tabs">
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script defer src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script defer src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
   <script defer src="/static/map-gestures.js?v=20260912-local-view"></script>
   <script defer src="/static/live-routes.js?v=20260913-live"></script>
-  <script defer src="/static/road-exposure.js?v=20260913-mumbai-bounds"></script>
-  <script defer src="/static/platform.js?v=20260913-live"></script>
-  <script defer src="/static/saved-forecast.js?v=20260912-local-view"></script>
+  <script defer src="/static/road-exposure.js?v=20260914-saved-map"></script>
+  <script defer src="/static/civic-operations.js?v=20260914-release"></script>
+  <script defer src="/static/saved-routes.js?v=20260914-release"></script>
+  <script defer src="/static/platform.js?v=20260914-saved-map"></script>
+  <script defer src="/static/saved-forecast.js?v=20260914-saved-map"></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -46,14 +48,15 @@
         <div id="map" aria-label="Mumbai flood and navigation map"></div>
         </div>
         <div class="map-status"><span><i class="tiny-dot"></i> <b id="nowcast-status">Nowcast unavailable</b></span><span>High-risk areas <b id="risk-count">—</b></span><span id="updated">Last updated: Not Available</span></div>
+        <div class="map-mode-tabs" role="tablist" aria-label="Map data mode"><button id="mode-demo" type="button" role="tab" aria-selected="true">Demo Scenario <small>SIMULATED</small></button><button id="mode-live" type="button" role="tab" aria-selected="false">Live Data <small>REAL-TIME</small></button></div>
         <div class="map-controls"><button id="mumbai-default" title="Return to the default Mumbai area" aria-label="Mumbai default area">◎ <span>Mumbai Default</span></button></div>
-        <div id="map-message" class="map-message" role="status">Greater Mumbai arterial roads load automatically from live rainfall screening.</div>
+        <div id="map-message" class="map-message" role="status">Loading the illustrative Mumbai monsoon demonstration.</div>
         <div id="location-details" class="location-details" hidden></div>
         <div class="legend"><span class="eyebrow">PREDICTED ROAD RISK</span><div><i style="background:#27865d"></i>Low <i style="background:#d4ad2f"></i>Moderate <i style="background:#e47e32"></i>High <i style="background:#cb4545"></i>Critical</div><small>Grey: no valid assessment · Closure: official restriction</small></div>
         <section class="forecast-dock" aria-label="Point forecast time controls">
           <div class="forecast-dock-heading"><div><span class="eyebrow">FORECAST TIME</span><h2>Look ahead</h2></div><span id="forecast-time-label" class="forecast-time-label" aria-live="polite">Now</span></div>
           <div id="timeline" class="timeline" role="group" aria-label="Forecast hour"></div>
-          <p>Tap a map location to explore its next 3 hours. Route assessment uses current conditions.</p>
+          <p id="forecast-help">Timeline controls the illustrative monsoon scenario. Values are simulated and must not guide travel.</p>
         </section>
         <div class="map-caption">MUMBAI <span>19.0760° N · 72.8777° E</span></div>
       </div>
@@ -69,9 +72,12 @@
       </aside>
       <section class="map-resources" aria-label="Forecast tools and map information">
         <details class="sources"><summary>Explore a saved forecast</summary>
+          <label class="field-label" for="saved-run-list">AVAILABLE MODEL RUNS</label><select id="saved-run-list"><option>Loading saved runs…</option></select><button type="button" id="refresh-saved-runs" class="secondary">Refresh runs</button>
           <form id="saved-run-form"><label class="field-label" for="saved-run-id">FORECAST RUN ID</label><input id="saved-run-id" placeholder="Paste saved forecast UUID" required><button class="secondary">Load forecast</button></form>
           <p id="saved-run-status" class="message" role="status">Load a model run to explore its depth and drainage layers.</p>
           <div id="saved-run-timeline" class="timeline" aria-label="Saved forecast lead time"></div>
+          <fieldset id="saved-layer-controls" hidden><legend>Saved forecast layers</legend><label><input type="checkbox" data-saved-layer="depth" checked> Water depth</label> <label><input type="checkbox" data-saved-layer="roads" checked> Road exposure</label> <label><input type="checkbox" data-saved-layer="drainage" checked> Drainage network</label> <label><input type="checkbox" data-saved-layer="hotspots" checked> Hotspots</label> <label><input type="checkbox" data-saved-layer="priorities"> Priority areas</label></fieldset>
+          <div id="saved-priorities"></div>
           <button id="clear-saved-run" class="secondary" hidden>Clear forecast layers</button>
         </details>
         <details class="sources"><summary>Data & model information</summary><dl id="sources"></dl></details>

@@ -1,5 +1,14 @@
 .git
 .env
+.env.*
+node_modules/
+.codex*/
+.pytest*/
+presentation-assets/
+data/runtime/
+data/raw/dem/
+data/raw/pilot_downloads/
+.agents/
 .pytest_cache
 __pycache__
 *.pyc

@@ -20,6 +20,22 @@ def test_visible_roads_are_clipped_and_zoom_filtered(monkeypatch):
     assert len(result) == 2
 
 
+def test_local_roads_are_progressively_revealed(monkeypatch):
+    def full_network():
+        coordinates = [[19.01, 72.84], [19.011, 72.841]]
+        return ([
+            {"id": 1, "name": "Primary", "highway": "primary", "coordinates": coordinates},
+            {"id": 2, "name": "Residential", "highway": "residential", "coordinates": coordinates},
+            {"id": 3, "name": "Service", "highway": "service", "coordinates": coordinates},
+        ], {"source": "test"})
+
+    monkeypatch.setattr(roads, "road_ways", full_network)
+    bounds = {"south": 19, "west": 72.83, "north": 19.02, "east": 72.85}
+    assert [item[2] for item in roads.visible_roads(bounds, 14)[0]] == ["primary"]
+    assert [item[2] for item in roads.visible_roads(bounds, 15)[0]] == ["primary", "residential"]
+    assert [item[2] for item in roads.visible_roads(bounds, 16)[0]] == ["primary", "residential", "service"]
+
+
 def test_road_screening_falls_back_to_blue_rainfall(monkeypatch):
     monkeypatch.setattr(roads, "road_ways", network)
     monkeypatch.setattr(roads, "fetch_rainfall", lambda cells, refresh: {

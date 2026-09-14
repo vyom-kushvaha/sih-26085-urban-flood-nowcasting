@@ -6,6 +6,9 @@ Urban Flood Nowcasting System (SIH26085)
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from backend.core.http_guard import HTTPGuard
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
@@ -50,6 +53,8 @@ app.add_middleware(
 
 
 # Include API routers
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(HTTPGuard)
 app.include_router(risk_router)
 app.include_router(weather_router)
 app.include_router(drainage_router)
@@ -111,11 +116,11 @@ async def readiness_check():
 
     database = database_health()
     ready = database["status"] == "CONNECTED" or settings.sqlite_fallback_allowed
-    return {
+    return JSONResponse({
         "status": "READY" if ready else "NOT_READY",
         "environment": settings.env,
         "database": database,
-    }
+    }, status_code=200 if ready else 503)
 
 
 @app.get("/")

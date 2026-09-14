@@ -6,4 +6,8 @@ if (-not (Test-Path $python)) {
 }
 
 node (Join-Path $PSScriptRoot "check_frontend.js")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+node (Join-Path $PSScriptRoot "test_saved_timeline.js")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & $python -m pytest -q
+exit $LASTEXITCODE

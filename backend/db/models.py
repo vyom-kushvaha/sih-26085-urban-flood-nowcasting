@@ -133,6 +133,7 @@ class ForecastRun(Base):
     rainfall_frame_id = Column(UUID(as_uuid=True), ForeignKey("rainfall_frames.id"))
     status = Column(String, nullable=False) # RUNNING, COMPLETED, FAILED
     input_parameters = Column(JSONB)
+    result_payload = Column(JSONB)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     completed_at = Column(DateTime(timezone=True))
     warnings = Column(JSONB)

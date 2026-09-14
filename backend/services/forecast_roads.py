@@ -1,6 +1,6 @@
 """Intersect road centre lines with saved model cells; never infer depth from rain."""
 import math
-from rasterio.warp import transform
+from rasterio.warp import transform, transform_bounds
 from backend.services.road_exposure import road_ways
 
 
@@ -20,10 +20,17 @@ def forecast_roads(result, snapshot, ways=None):
     grid, depths = result['grid'], snapshot['depth_m']
     size = grid['cell_size_m']
     height, width = len(depths), len(depths[0])
+    west, south, east, north = transform_bounds(grid['crs'], 'EPSG:4326',
+        grid['origin_x_m'], grid['origin_y_m'] - height * size,
+        grid['origin_x_m'] + width * size, grid['origin_y_m'], densify_pts=21)
     features = []
     for way in road_ways()[0] if ways is None else ways:
         coords = way.get('coordinates', [])
         if len(coords) < 2:
+            continue
+        # Reject disjoint ways before expensive per-way CRS transformations.
+        if (max(p[1] for p in coords) < west or min(p[1] for p in coords) > east
+                or max(p[0] for p in coords) < south or min(p[0] for p in coords) > north):
             continue
         xs, ys = transform('EPSG:4326', grid['crs'],
                            [p[1] for p in coords], [p[0] for p in coords])
@@ -66,7 +73,8 @@ def forecast_roads(result, snapshot, ways=None):
                         'safe_route_certified':False, 'closure_status':'UNKNOWN'}})
     return {'type':'FeatureCollection', 'features':features,
         'lead_minutes':snapshot['lead_minutes'], 'valid_time':snapshot['valid_time'],
-        'output_quality':result['output_quality'], 'terrain_source':result['terrain_source'],
-        'limitations':result['limitations'] + ['Centre-line cell intersections; depth bands are not vehicle passability or official closures.'],
+        'output_quality':result.get('output_quality', 'UNKNOWN'),
+        'terrain_source':result.get('terrain_source', 'UNKNOWN'),
+        'limitations':result.get('limitations', []) + ['Centre-line cell intersections; depth bands are not vehicle passability or official closures.'],
         'legend':[{'risk':risk,'color':color} for risk,color in
                   [classify_depth(v) for v in (0,10,20,40,None)]]}

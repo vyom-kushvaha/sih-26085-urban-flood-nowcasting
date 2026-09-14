@@ -148,6 +148,10 @@ vite.config.ts.timestamp-*
 data/runtime/
 __pycache__/
 .pytest-current/
+.pytest-*/
+.codex-build/
+.codex-finalizer/
+.codex-review/
 .pytest_tmp/
 *.py[cod]
 *$py.class
