@@ -57,7 +57,7 @@ def test_valid_depth_uses_green_or_red_but_never_certifies(monkeypatch):
     engine = Mock()
     engine.calculate_risk.side_effect = lambda blockage_pct, **kw: {
         "prediction_valid": True, "hydrology_metrics": {"dem_status": "VALIDATED_HIGH_RES_DTM"},
-        "water_depth_cm": 2 if blockage_pct == 0 else 20}
+        "water_depth_cm": 2 if blockage_pct == 0 else 35}
     result = roads.road_exposure({"south": 19, "west": 72.83, "north": 19.02, "east": 72.85}, 15, engine)
     assert all(f["properties"]["category"] == "RED" for f in result["features"])
     assert all(f["properties"]["safe_route_certified"] is False for f in result["features"])
@@ -70,13 +70,13 @@ def test_fresh_verified_observation_overrides_rainfall_screening(monkeypatch):
     engine = Mock()
     engine.calculate_risk.return_value = {"prediction_valid": False}
     observation = {"report_id": "verified-1", "lat": 19.0105, "lon": 72.8405,
-                   "water_depth_cm": 22, "observed_at": "2026-09-13T04:00:00+00:00"}
+                   "water_depth_cm": 35, "observed_at": "2026-09-13T04:00:00+00:00"}
     result = roads.road_exposure({"south": 19, "west": 72.83, "north": 19.02, "east": 72.85},
                                  11, engine, verified_observations=[observation])
     feature = result["features"][0]
     assert feature["properties"]["category"] == "RED"
     assert feature["properties"]["classification_basis"] == "VERIFIED_CITIZEN_OBSERVATION"
-    assert feature["properties"]["observed_water_depth_cm"] == 22
+    assert feature["properties"]["observed_water_depth_cm"] == 35
     assert result["metadata"]["verified_observation_road_count"] == 1
 
 

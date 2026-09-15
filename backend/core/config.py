@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     rainfall_store_path: str = "data/runtime/rainfall"
     rainfall_stale_after_minutes: int = 30
     rainfall_http_timeout_seconds: float = 8.0
+    # Public OSRM instances are an external best-effort dependency.  Keep a
+    # second compatible endpoint so one provider's rate limit or outage does
+    # not turn an otherwise valid journey into a 503.
+    osrm_base_urls: str = "https://router.project-osrm.org,https://routing.openstreetmap.de/routed-car"
+    osrm_timeout_seconds: float = 8.0
     cors_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
 
     model_config = SettingsConfigDict(
@@ -47,6 +52,10 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def osrm_base_url_list(self) -> list[str]:
+        return [url.strip().rstrip("/") for url in self.osrm_base_urls.split(",") if url.strip()]
 
     @property
     def sqlalchemy_database_uri(self) -> str | None:

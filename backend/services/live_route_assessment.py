@@ -203,7 +203,7 @@ def assess_routes(candidates, engine, origin, destination, force_refresh=False):
             "prediction_valid": False, "risk_category": "UNAVAILABLE", "risk_level": "UNAVAILABLE",
             "risk_score": None, "max_water_depth_cm": None, "num_high_risk_sections": 0,
             "route_type": "live_rainfall_screening", "provenance_label": "ESTIMATED: live numerical weather exposure",
-            "color": "#64748B", "stroke_style": "dashed", "is_recommended": False})
+            "color": "#64748B", "stroke_style": "solid", "is_recommended": False})
     complete = bool(routes) and all(r["assessment_complete"] for r in routes)
     model_complete = complete and all(r["modelled_flood_exposure_index"] is not None for r in routes)
     metric = "modelled_flood_exposure_index" if model_complete else "rainfall_exposure_index"
@@ -216,7 +216,7 @@ def assess_routes(candidates, engine, origin, destination, force_refresh=False):
         basis = "modelled flood exposure" if model_complete else "rainfall exposure"
         route["screening_label"] = "Only available road option" if len(routes) == 1 and complete else f"Similar {basis}" if tied else f"Lower {basis}" if route["is_lowest_exposure"] else f"Higher {basis}" if complete else "Data coverage incomplete"
         if complete:
-            route["color"] = "#64748B" if tied else "#2563eb" if route["is_lowest_exposure"] else "#e47e32"
+            route["color"] = "#16a34a" if route["is_lowest_exposure"] and not tied else "#f59e0b" if tied else "#dc2626"
     basis = "modelled flood exposure" if model_complete else "rainfall exposure"
     summary = f"Live calculation complete. Colours compare {basis}; flood safety is unverified." if complete else "Live data unavailable or incomplete. Flood safety cannot be determined."
     if len(routes) == 1:

@@ -6,6 +6,7 @@ Project: Urban Flood Nowcasting System (SIH26085)
 
 import sys
 import os
+import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, Tuple
@@ -25,8 +26,10 @@ from backend.services.historical_scenarios import (
 )
 from services.weather_service import get_weather_service
 from backend.services.osm_road_router import route as local_osm_route
+from backend.core.config import settings
 
 router = APIRouter(prefix="/api/v1", tags=["Flood Risk & Hydrology"])
+logger = logging.getLogger(__name__)
 
 # Pydantic Schemas with Strict Range Validation
 class RiskCalculationRequest(BaseModel):
@@ -756,18 +759,25 @@ def _query_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float, v
     if cache_key in _OSRM_CACHE:
         return [dict(r) for r in _OSRM_CACHE[cache_key]]
 
-    try:
-        # `overview=full` is deliberate: simplifying this geometry joins distant
-        # vertices with straight chords and makes the map look like it crosses
-        # buildings.  These coordinates are the routed OSM road shape.
-        locations = f"{o_lon},{o_lat};" + (f"{via[1]},{via[0]};" if via else "") + f"{d_lon},{d_lat}"
-        url = f"https://router.project-osrm.org/route/v1/driving/{locations}?overview=full&geometries=geojson&alternatives=3&steps=true"
-        if via:
-            url += "&continue_straight=true&waypoints=0;2&radiuses=250;250;250"
-        req = urllib.request.Request(url, headers={"User-Agent": "UrbanFloodNowcasting/1.0"})
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            if data.get("code") == "Ok" and data.get("routes"):
+    # Render's free instances can wake on a new egress IP.  Public OSRM
+    # instances occasionally rate-limit or time out those requests, so try
+    # compatible providers one at a time.  A single bounded attempt per
+    # provider prevents the route handler from exceeding the frontend timeout.
+    for base_url in settings.osrm_base_url_list:
+        try:
+            # `overview=full` is deliberate: simplifying this geometry joins distant
+            # vertices with straight chords and makes the map look like it crosses
+            # buildings.  These coordinates are the routed OSM road shape.
+            locations = f"{o_lon},{o_lat};" + (f"{via[1]},{via[0]};" if via else "") + f"{d_lon},{d_lat}"
+            url = f"{base_url}/route/v1/driving/{locations}?overview=full&geometries=geojson&alternatives=3&steps=true"
+            if via:
+                url += "&continue_straight=true&waypoints=0;2&radiuses=250;250;250"
+            req = urllib.request.Request(url, headers={"User-Agent": "UrbanFloodNowcasting/1.0"})
+            with urllib.request.urlopen(req, timeout=settings.osrm_timeout_seconds) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                if data.get("code") != "Ok" or not data.get("routes"):
+                    logger.warning("OSRM provider returned no routes: %s", base_url)
+                    continue
                 routes_out = []
                 for idx, r in enumerate(data["routes"]):
                     geojson_coords = r.get("geometry", {}).get("coordinates", [])
@@ -803,11 +813,14 @@ def _query_osrm_routes(o_lat: float, o_lon: float, d_lat: float, d_lon: float, v
                         "estimated_duration_min": dur_min
                     })
 
-                if routes_out and len(_OSRM_CACHE) < 2048:
-                    _OSRM_CACHE[cache_key] = [dict(r) for r in routes_out]
-                return routes_out
-    except Exception:
-        pass
+                if routes_out:
+                    if len(_OSRM_CACHE) < 2048:
+                        _OSRM_CACHE[cache_key] = [dict(r) for r in routes_out]
+                    return routes_out
+        except Exception as exc:
+            # Keep the exception type and provider in Render logs.  Previously
+            # this was swallowed, which made production-only outages opaque.
+            logger.warning("OSRM provider request failed (%s): %s", base_url, exc)
     return []
 
 
@@ -1228,7 +1241,11 @@ def calculate_flood_routes(
             offline_route = local_osm_route(actual_o_lat, actual_o_lon, actual_d_lat, actual_d_lon)
             osrm_routes = [offline_route] if offline_route else []
         if not osrm_routes:
-            raise HTTPException(status_code=503, detail="No connected road route is available for this journey. No straight-line route will be shown.")
+            raise HTTPException(
+                status_code=503,
+                detail=("Route calculation unavailable. External road data provider is temporarily unreachable. "
+                        "Please try again in a moment or check your internet connection.")
+            )
         candidates_def = [{
             "id": route["id"],
             "name": route["name"],
@@ -1357,10 +1374,10 @@ def calculate_flood_routes(
         terrain_valid = bool(pt_details) and all(p.get("prediction_valid", False) for p in pt_details)
 
         # Segment-Level Flood Safety Enforcement:
-        # A route CANNOT be SAFE/GREEN if ANY segment has depth > 15 cm or score >= 65, or crosses inundated hotspots
-        has_critical_segment = any(d > 15.0 or s >= 65.0 for d, s in zip(pt_depths, pt_scores))
-        has_moderate_segment = any(d > 5.0 or s >= 35.0 for d, s in zip(pt_depths, pt_scores))
-        passes_inundated_hotspot = any(h["name"] in cand.get("hotspot_keys", []) and h["depth_cm"] > 15.0 for h in active_hotspots)
+        # Green: <= 10 cm (Passable), Orange: 10–30 cm (Risky), Red: > 30 cm (Likely Blocked)
+        has_critical_segment = any(d > 30.0 or s >= 75.0 for d, s in zip(pt_depths, pt_scores))
+        has_moderate_segment = any(d > 10.0 or s >= 35.0 for d, s in zip(pt_depths, pt_scores))
+        passes_inundated_hotspot = any(h["name"] in cand.get("hotspot_keys", []) and h["depth_cm"] > 30.0 for h in active_hotspots)
 
         if not terrain_valid:
             color = "#64748B"
@@ -1369,25 +1386,25 @@ def calculate_flood_routes(
             status_text = "Flood assessment unavailable"
             badge = "TERRAIN DATA REQUIRED"
             reason = "Route geometry is available, but flood safety cannot be assessed because validated terrain is unavailable."
-        elif has_critical_segment or passes_inundated_hotspot or max_d > 15.0 or route_score >= 65.0:
-            color = "#EF4444"  # Red
-            level = "CRITICAL" if max_d > 25.0 or route_score >= 80.0 else "HIGH"
+        elif has_critical_segment or passes_inundated_hotspot or max_d > 30.0 or route_score >= 75.0:
+            color = "#DC2626"  # Red (> 30 cm)
+            level = "CRITICAL" if max_d > 45.0 or route_score >= 85.0 else "HIGH"
             category = "DANGER"
-            status_text = "Dangerous / High Flood Hazard"
+            status_text = "Dangerous / High Flood Hazard (>30 cm)"
             badge = f"⛔ DANGER: {max_d} cm depth (Inundated)"
-            reason = f"Severe flooding hazard! Route contains impassable segments inundated up to {max_d} cm. High vehicle stalling and submersion hazard."
-        elif has_moderate_segment or max_d > 5.0 or route_score >= 30.0:
-            color = "#F59E0B"  # Orange
+            reason = f"Severe flooding hazard! Route contains impassable segments inundated up to {max_d} cm (>30 cm). High vehicle stalling and submersion hazard."
+        elif has_moderate_segment or max_d > 10.0 or route_score >= 35.0:
+            color = "#F59E0B"  # Orange (10-30 cm)
             level = "MODERATE"
             category = "MODERATE"
-            status_text = "Moderate Risk (Caution)"
+            status_text = "Moderate Risk / Caution (10–30 cm)"
             badge = f"⚠️ CAUTION: {max_d} cm depth (Ponding)"
             reason = f"Stormwater ponding detected along corridor ({max_d} cm max depth). Passable with caution; expect reduced speeds."
         else:
-            color = "#10B981"  # Green
+            color = "#16A34A"  # Green (<= 10 cm)
             level = "LOW"
             category = "SAFE"
-            status_text = "Safest / Low Flood Risk"
+            status_text = "Safest / Low Flood Risk (≤10 cm)"
             badge = f"✅ SAFE: {max_d} cm depth (Passable)"
             reason = f"Minimal hydrodynamic risk ({route_score}/100). Roadway has 0–{max_d} cm surface water; 100% passable with zero submerged choke points."
 
@@ -1422,7 +1439,7 @@ def calculate_flood_routes(
             "terrain_valid": terrain_valid,
             "prediction_valid": terrain_valid,
             "status_text": status_text,
-            "stroke_style": "dashed" if category == "DANGER" else "solid",
+            "stroke_style": "solid",
             "badge": badge,
             "reason": reason,
             "advisory": f"Evaluated under {actual_rain} mm/hr rainfall. Modelled risk score: {route_score}/100.",
