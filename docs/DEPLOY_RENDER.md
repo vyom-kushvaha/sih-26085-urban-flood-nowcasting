@@ -1,5 +1,7 @@
 # Deploy the Urban Flood Nowcasting website on Render
 
+Render Free is no longer the preferred target for the current requirement because free web services sleep after inactivity. Keep this guide only as a quick demo fallback. For the no-sleep deployment path, use [DEPLOY_NORTHFLANK.md](DEPLOY_NORTHFLANK.md).
+
 The repository includes a Render Blueprint in `render.yaml`. It deploys the FastAPI API and the frontend together as one web service using `gunicorn`/`uvicorn` behind the scenes.
 
 ## Production Requirements & Environment Variables

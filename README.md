@@ -29,6 +29,7 @@ See the project requirements and implementation sequence:
 - [Product requirements](docs/PRD.md)
 - [Phase plan](docs/PHASE_PLAN.md)
 - [High-resolution terrain plan](docs/HIGH_RES_TERRAIN_PLAN.md)
+- [No-sleep deployment guide](docs/DEPLOY_NORTHFLANK.md)
 
 ## Run locally
 
