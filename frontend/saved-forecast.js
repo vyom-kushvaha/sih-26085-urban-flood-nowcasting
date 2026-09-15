@@ -64,7 +64,7 @@ async function showSavedLead(minute, fit=false){
     $('saved-run-status').textContent=`Saved prototype · T+${minute} min · ${depth.valid_time}. Terrain: ${depth.terrain_source}. Overlay blue/orange/red represents model depth, not route safety.`;
     $('saved-run-timeline').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.minute)===minute)));
     if(state.routeData)assessSavedCandidates();
-  }catch(e){if(generation===savedGeneration){$('saved-run-status').textContent='Saved layer unavailable. '+e.message;$('nowcast-status').textContent='Saved layer unavailable';$('updated').textContent='No layer loaded';}}
+  }catch(e){if(generation===savedGeneration){$('saved-run-status').textContent='Saved layer unavailable. '+e.message;$('nowcast-status').textContent='Saved layer unavailable';$('updated').textContent='No layer loaded';$('saved-priorities').textContent='Priorities unavailable.';}}
 }
 $('saved-run-form').onsubmit=async e=>{
   e.preventDefault();clearSavedForecast();const generation=savedGeneration;
