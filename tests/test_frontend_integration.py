@@ -118,7 +118,7 @@ def test_all_routes_together():
         assert "max_water_depth_cm" in r
         assert "risk_category" in r
         assert "color" in r
-        assert r["color"] in ["#10B981", "#F59E0B", "#EF4444", "#64748B"]
+        assert r["color"].upper() in ["#10B981", "#16A34A", "#F59E0B", "#EF4444", "#DC2626", "#64748B"]
 
     # Verify recommended route
     assert "recommended_route_id" in data

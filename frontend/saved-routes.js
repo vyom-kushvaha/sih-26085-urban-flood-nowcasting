@@ -18,7 +18,15 @@ function renderSavedRoutes(){
   $('route-options').querySelectorAll('button').forEach(button=>button.onclick=()=>{state.selected=button.dataset.savedRoute;renderRoutes();});
   if(!state.map||typeof L==='undefined')return;
   for(const r of [...data.routes].sort((a,b)=>Number(a.id===state.selected)-Number(b.id===state.selected))){
-    L.polyline(r.coordinates,{color:'#64748b',weight:r.id===state.selected?6:3,opacity:.65,dashArray:'5 5'}).addTo(state.routes);
-    if(r.id===state.selected)L.geoJSON({type:'FeatureCollection',features:r.segments},{style:f=>({color:f.properties.color,weight:6,opacity:.95}),onEachFeature:(f,l)=>l.bindPopup(`Saved T+${data.lead_minutes} min<br>Depth: ${f.properties.depth_cm===null?'Unknown':f.properties.depth_cm.toFixed(1)+' cm'}<br>Flood safety unverified`)}).addTo(state.routes);
+    if(!validRoadCoordinates(r.coordinates||[]))continue;
+    const selected=r.id===state.selected;
+    drawRoadRoute(r.coordinates,{selected,colour:'#64748b',popup:`Saved T+${data.lead_minutes} min<br>Peak depth: ${r.max_depth_cm===null?'Unknown':r.max_depth_cm.toFixed(1)+' cm'}<br>Flood safety unverified`,onClick:()=>{if(!selected){state.selected=r.id;renderRoutes();}}});
+    if(selected){
+      for(const feature of r.segments||[]){
+        const coords=feature?.geometry?.coordinates?.map(([lon,lat])=>[lat,lon]);
+        if(validRoadCoordinates(coords||[]))drawRouteExposure(coords,feature.properties.color);
+      }
+      addRouteEndpoints(r.coordinates);
+    }
   }
 }

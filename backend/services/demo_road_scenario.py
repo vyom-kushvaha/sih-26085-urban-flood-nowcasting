@@ -46,24 +46,23 @@ def _road_exposure_factor(road_id, highway, segment_index):
     raw = (sum((index + 1) * ord(char) for index, char in enumerate(token)) % 100) / 100
     # The curve gives well-drained/elevated streets enough visual presence for
     # judges to compare all risk bands inside one neighbourhood viewport.
-    variation = .02 + .98 * raw ** 1.7
+    variation = .20 + .80 * (raw ** 1.1)
     return round(min(1.0, variation * ROAD_CLASS_FACTOR.get(highway, 1.0)), 2)
 
 
 def _band(depth_cm):
-    if depth_cm < 5:
+    """Road flood risk bands: green passable, orange risky, red likely blocked."""
+    if depth_cm <= 10:
         return "GREEN", "#16a34a", "LOW"
-    if depth_cm <= 15:
-        return "ORANGE", "#f59e0b", "MODERATE"
     if depth_cm <= 30:
-        return "RED", "#dc2626", "HIGH"
-    return "CRITICAL", "#991b1b", "CRITICAL"
+        return "ORANGE", "#f59e0b", "MODERATE"
+    return "RED", "#dc2626", "HIGH"
 
 
 def demo_road_exposure(bounds, zoom, lead_hours):
     roads, source = visible_roads(bounds, zoom)
     features = []
-    counts = {"GREEN": 0, "ORANGE": 0, "RED": 0, "CRITICAL": 0}
+    counts = {"GREEN": 0, "ORANGE": 0, "RED": 0}
     road_class_counts = {}
     for road_id, name, highway, coordinates, _ in roads:
         road_class_counts[highway] = road_class_counts.get(highway, 0) + 1
@@ -97,7 +96,7 @@ def demo_road_exposure(bounds, zoom, lead_hours):
     for key, lat, lon, _, depths in HOTSPOTS:
         depth = round(BASE_DEPTH_CM[lead_hours] + depths[lead_hours], 1)
         category, color, risk = _band(depth)
-        if depth >= 5:
+        if depth > 10:
             hotspots.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]},
                 "properties": {"name": key, "depth_cm": depth, "risk": risk, "color": color,
                     "lead_hours": lead_hours, "basis": "ILLUSTRATIVE_MODEL_OUTPUT"}})

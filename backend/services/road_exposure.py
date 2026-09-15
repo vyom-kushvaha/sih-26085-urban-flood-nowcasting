@@ -89,12 +89,12 @@ def road_exposure(bounds, zoom, engine, force_refresh=False, verified_observatio
         if observation is not None:
             observed_depth = observation["water_depth_cm"]
             observed_length += length
-            category, color = (("GREEN", "#16a34a") if observed_depth < 5 else
-                               (("ORANGE", "#f59e0b") if observed_depth <= 15 else ("RED", "#dc2626")))
+            category, color = (("GREEN", "#16a34a") if observed_depth <= 10 else
+                               (("ORANGE", "#f59e0b") if observed_depth <= 30 else ("RED", "#dc2626")))
             basis = "VERIFIED_CITIZEN_OBSERVATION"
         elif depth_range is not None:
             upper = depth_range[1]
-            category, color = ("GREEN", "#16a34a") if upper < 5 else (("ORANGE", "#f59e0b") if upper <= 15 else ("RED", "#dc2626"))
+            category, color = ("GREEN", "#16a34a") if upper <= 10 else (("ORANGE", "#f59e0b") if upper <= 30 else ("RED", "#dc2626"))
         elif rain is not None:
             category, color = ("BLUE", "#2563eb") if rain < 5 else (("ORANGE", "#f59e0b") if rain <= 20 else ("RED", "#dc2626"))
             basis = "LIVE_RAINFALL_SCREENING"

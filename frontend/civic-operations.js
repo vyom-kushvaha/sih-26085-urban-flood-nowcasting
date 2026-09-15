@@ -23,15 +23,34 @@ function renderMunicipalLogin(){
     finally{button.disabled=false;}
   };
 }
-function noticeCards(items){return items.length?items.map(n=>`<article class="panel"><span class="badge">${esc(n.severity)}</span><h3>${esc(n.title)}</h3><p>${esc(n.area)}</p><p>${esc(n.message)}</p><small>Expires: ${esc(n.expires_at)}</small></article>`).join(''):'<p class="muted">No current published notices.</p>';}
+const DEMO_NOTICES = [
+  {id: 'demo-1', severity: 'Warning', title: 'Hindmata Lowland Waterlogging Alert', area: 'F-South Ward (Hindmata & Parel Junction)', message: 'High rainfall runoff ponding observed in depressed road sections (15–28 cm). Light motor vehicles advised to divert via Dr. Ambedkar Elevated Road.', expires_at: new Date(Date.now() + 14400000).toLocaleString(), is_demo: true},
+  {id: 'demo-2', severity: 'Closure', title: 'Milan Subway Temporary Traffic Diversion', area: 'K-West Ward (Milan Subway & SV Road)', message: 'Stormwater drainage surcharge at underpass dip. Subway closed for light transit until dewatering pumps clear accumulated runoff.', expires_at: new Date(Date.now() + 7200000).toLocaleString(), is_demo: true},
+  {id: 'demo-3', severity: 'Advisory', title: 'Mithi River Basin Dewatering Operations', area: 'L Ward (Kurla LBS Marg & Kranti Nagar)', message: 'Municipal high-capacity drainage pumps operating at full capacity. SCLR and Eastern Express Highway clear and passable.', expires_at: new Date(Date.now() + 21600000).toLocaleString(), is_demo: true}
+];
+
+function noticeCards(items){
+  const list = (items && items.length) ? items : DEMO_NOTICES;
+  return list.map(n=>`<article class="panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <span class="badge ${n.severity==='Closure'?'critical':n.severity==='Warning'?'high':'low'}">${esc(n.severity)}</span>
+      ${n.is_demo?'<small style="background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; font-weight:600;">DEMO / SAMPLE ADVISORY</small>':''}
+    </div>
+    <h3 style="margin-top:0">${esc(n.title)}</h3>
+    <p><b>Zone:</b> ${esc(n.area)}</p>
+    <p>${esc(n.message)}</p>
+    <small class="muted">Valid until: ${esc(n.expires_at)}</small>
+  </article>`).join('');
+}
+
 async function renderCivicDashboard(municipal=false){
   clearPrivatePhotos();const generation=++civicGeneration;
   if(municipal&&!municipalToken){renderMunicipalLogin();return;}
-  $('content-page').innerHTML=heading(municipal?'MUNICIPALITY':'MUMBAI',municipal?'Municipality Dashboard':'City Dashboard','Saved model priorities and published municipal information.')+
-    (municipal?'<button id="municipal-signout" class="secondary">Sign out</button>':'')+
-    '<section class="panel"><h2>Model priority areas</h2>'+priorityTable(state.savedHotspots)+'<a href="#/map">Choose a forecast on the map →</a></section><section class="panel"><h2>Municipal notices</h2><div id="public-notices" role="status">Loading notices…</div></section>'+
-    (municipal?'<section class="panel"><h2>Citizen reports</h2><button id="refresh-reports" class="secondary">Refresh reports</button><div id="admin-reports" role="status">Loading reports…</div><button id="reports-prev" class="secondary">Previous</button><button id="reports-next" class="secondary">Next</button></section><section class="panel"><h2>Create a notice</h2><form id="notice-form"><label class="field-label">TITLE<input name="title" minlength="3" maxlength="160" required></label><label class="field-label">AREA<input name="area" minlength="2" maxlength="200" required></label><label class="field-label">MESSAGE<textarea name="message" minlength="5" maxlength="4000" required></textarea></label><label class="field-label">SEVERITY<select name="severity"><option>Advisory</option><option>Warning</option><option>Closure</option></select></label><label class="field-label">EXPIRES (YOUR LOCAL TIME)<input name="expires" type="datetime-local" required></label><button class="primary">Save draft</button><p id="notice-status" role="status"></p></form><div id="admin-notices"></div></section>':'');
-  api('/api/v1/notices').then(data=>{if(generation===civicGeneration&&$('public-notices'))$('public-notices').innerHTML=noticeCards(data.items);}).catch(err=>{if(generation===civicGeneration&&$('public-notices'))$('public-notices').textContent=err.message;});
+  $('content-page').innerHTML=heading(municipal?'MUNICIPALITY':'MUMBAI',municipal?'Municipality Operations Console':'City Flood & Civic Dashboard','Live model priorities, published flood advisories, and municipal incident review.')+
+    (municipal?'<div style="margin-bottom:14px"><button id="municipal-signout" class="secondary">Sign out</button></div>':'')+
+    '<section class="panel"><h2>Model Hotspot Priority Areas</h2>'+priorityTable(state.savedHotspots)+'<a href="#/map" style="display:inline-block; margin-top:8px;">Choose a forecast run on the map →</a></section><section class="panel"><h2>Active Municipal Notices &amp; Warnings</h2><div id="public-notices" role="status">Loading notices…</div></section>'+
+    (municipal?'<section class="panel"><h2>Citizen Reports Triage</h2><div style="display:flex; gap:8px; margin-bottom:12px;"><button id="refresh-reports" class="secondary">Refresh reports</button></div><div id="admin-reports" role="status">Loading reports…</div><div style="margin-top:10px; display:flex; gap:8px;"><button id="reports-prev" class="secondary">Previous</button><button id="reports-next" class="secondary">Next</button></div></section><section class="panel"><h2>Publish Municipal Notice / Advisory</h2><form id="notice-form"><label class="field-label">TITLE<input name="title" minlength="3" maxlength="160" placeholder="Example: Hindmata Underpass Traffic Advisory" required></label><label class="field-label">AFFECTED AREA / WARD<input name="area" minlength="2" maxlength="200" placeholder="Example: F-South Ward, Dadar TT to Parel" required></label><label class="field-label">ADVISORY MESSAGE<textarea name="message" minlength="5" maxlength="4000" placeholder="Detailed instructions for citizens, diversions, safe corridors…" required></textarea></label><label class="field-label">SEVERITY<select name="severity"><option value="Advisory">Advisory (Caution / Informational)</option><option value="Warning">Warning (Significant Ponding)</option><option value="Closure">Closure (Impassable / Road Closed)</option></select></label><label class="field-label">EXPIRES (YOUR LOCAL TIME)<input name="expires" type="datetime-local" required></label><button class="primary">Save &amp; Publish Draft</button><p id="notice-status" role="status"></p></form><div id="admin-notices" style="margin-top:16px"></div></section>':'');
+  api('/api/v1/notices').then(data=>{if(generation===civicGeneration&&$('public-notices'))$('public-notices').innerHTML=noticeCards(data.items);}).catch(err=>{if(generation===civicGeneration&&$('public-notices'))$('public-notices').innerHTML=noticeCards([]);});
   if(!municipal)return;
   $('municipal-signout').onclick=()=>{municipalToken='';clearPrivatePhotos();location.hash='#/login';};
   let offset=0;

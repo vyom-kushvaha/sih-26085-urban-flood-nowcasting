@@ -16,21 +16,17 @@ function renderLiveRoutes(data){
     const coords=r.coordinates||[];
     if(!String(r.geometry_source).endsWith('ROAD_NETWORK')||coords.length<2||!coords.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)))continue;
     const selected=r.id===state.selected;
-    const colour=!data.screening_complete||routes.length===1?'#64748b':r.screening_label.startsWith('Similar')?'#64748b':r.is_lowest_exposure?'#2563eb':'#e47e32';
-    L.polyline(coords,{smoothFactor:0,color:'#ffffff',weight:selected?9:6,opacity:.9}).addTo(state.routes);
-    const line=L.polyline(coords,{smoothFactor:0,color:colour,weight:selected?5:3,opacity:selected?1:.5,dashArray:data.screening_complete?null:'8 5'}).addTo(state.routes);
-    line.bindPopup(`${esc(r.screening_label)}<br>Mean rainfall: ${esc(r.mean_rainfall_mm_hr??'Unavailable')} mm/hr<br>Flood safety unverified`);
-    line.on('click',()=>{state.selected=r.id;renderRoutes();});
+    const colour=!data.screening_complete||routes.length===1?'#64748b':r.is_lowest_exposure&&!r.screening_label.startsWith('Similar')?'#16a34a':r.screening_label.startsWith('Similar')?'#f59e0b':'#dc2626';
+    drawRoadRoute(coords,{selected,colour,popup:`${esc(r.screening_label)}<br>Mean rainfall: ${esc(r.mean_rainfall_mm_hr??'Unavailable')} mm/hr<br>Flood safety unverified`,onClick:()=>{if(!selected){state.selected=r.id;renderRoutes();}}});
     if(selected)for(const segment of r.segments||[]){
       const upper=segment.estimated_1h_depth_range_cm?.[1];
       const rain=segment.rainfall_mm_hr;
-      const segmentColour=upper!=null?(upper>15?'#dc2626':upper>=5?'#f59e0b':'#2563eb'):
+      const segmentColour=upper!=null?(upper>30?'#dc2626':upper>10?'#f59e0b':'#16a34a'):
         rain==null?'#64748b':rain>20?'#dc2626':rain>=5?'#f59e0b':'#2563eb';
-      L.polyline(segment.coordinates,{smoothFactor:0,color:segmentColour,weight:6,opacity:.95,dashArray:upper==null?'6 4':null}).addTo(state.routes)
-        .bindPopup(`Live rainfall: ${esc(segment.rainfall_mm_hr??'Unavailable')} mm/hr<br>1h modeled depth: ${segment.estimated_1h_depth_range_cm?esc(segment.estimated_1h_depth_range_cm[0])+'–'+esc(upper)+' cm':'Unavailable'}<br>Flood safety unverified`);
+      drawRouteExposure(segment.coordinates,segmentColour);
     }
     if(selected){
-      [['A',coords[0]],['B',coords[coords.length-1]]].forEach(([label,p])=>L.marker(p,{icon:L.divIcon({className:'',html:`<div class="endpoint">${label}</div>`,iconSize:[26,26],iconAnchor:[13,13]})}).addTo(state.markers));
+      addRouteEndpoints(coords);
       state.map.fitBounds(L.latLngBounds(coords),{padding:[48,48],maxZoom:LOCAL_MAP_ZOOM,animate:false});
     }
   }

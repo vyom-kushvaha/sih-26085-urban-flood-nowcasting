@@ -24,8 +24,8 @@ async function loadVisibleRoadExposure(){
     const legend=document.querySelector('.legend');
     if(demo){
       $('nowcast-status').textContent=`Demo scenario · T+${m.lead_hours}h`;
-      legend.innerHTML='<span class="eyebrow">ILLUSTRATIVE ROAD DEPTH</span><div><i style="background:#16a34a"></i>&lt;5 cm <i style="background:#f59e0b"></i>5–15 cm <i style="background:#dc2626"></i>15–30 cm <i style="background:#991b1b"></i>&gt;30 cm</div><small>Simulated demonstration · Not live or validated · Green is not a safety certificate.</small>';
-      $('risk-count').textContent=(m.category_counts.RED||0)+(m.category_counts.CRITICAL||0);
+      legend.innerHTML='<span class="eyebrow">ILLUSTRATIVE ROAD DEPTH</span><div><i style="background:#16a34a"></i>0–10 cm <i style="background:#f59e0b"></i>10–30 cm <i style="background:#dc2626"></i>&gt;30 cm</div><small>Simulated · Green = passable (≤10 cm) · Orange = risky · Red = likely blocked. Not live or validated.</small>';
+      $('risk-count').textContent=(m.category_counts.RED||0);
       $('updated').textContent='SIMULATED · NOT LIVE';
       const coverageHint=m.zoom>=16?'All acquired drivable road classes are visible in this viewport.':m.zoom===15?'Residential streets are visible; zoom in once for service roads.':'Zoom in for residential and service roads.';
       $('map-message').textContent=`Zoom ${m.zoom} · ${m.road_segment_count} mapped road segments coloured · T+${m.lead_hours} simulated scenario. ${coverageHint}`;

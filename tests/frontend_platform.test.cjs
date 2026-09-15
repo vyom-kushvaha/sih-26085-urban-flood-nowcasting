@@ -66,16 +66,41 @@ test('background forecast and time changes keep location details closed until re
 test('selected road preserves bends without Leaflet simplification',()=>{
   const a=app(),drawn=[],views=[];
   a.context.views=views;
-  a.context.L={polyline:(coords,options)=>{drawn.push({coords,options});return {addTo(){return this},bindPopup(){return this}}},marker:()=>({addTo(){}}),divIcon:x=>x,latLngBounds:x=>x};
+  a.context.L={polyline:(coords,options)=>{drawn.push({coords,options});return {addTo(){return this},bindPopup(){return this},on(){return this}}},marker:()=>({addTo(){}}),divIcon:x=>x,latLngBounds:x=>x};
   a.run(`state.map={fitBounds:(bounds,options)=>views.push({bounds,options})};state.selected='one';state.routeData={routes:[{id:'one',geometry_source:'OSRM_ROAD_NETWORK',coordinates:[[19,72],[19.001,72],[19.001,72.001]],steps:[{type:'roundabout',exit:2,road_name:'Circle Road',distance_m:50}]}]};renderRoutes()`);
   assert.equal(drawn.length,2);
   assert.equal(drawn[1].coords.length,3);
   assert.equal(drawn[1].options.smoothFactor,0);
+  assert.equal(drawn[1].options.pane,'routeSelected');
+  assert.equal(drawn[1].options.dashArray,null);
   assert.equal(views[0].options.maxZoom,15);
   assert.doesNotMatch(a.node('route-options').innerHTML,/Road-by-road directions|Circle Road/);
   a.run(`state.routeData.routes[0].coordinates=[[19,72],null,[19.001,72.001]];renderRoutes()`);
   assert.equal(drawn.length,2);
   assert.match(a.node('route-message').textContent,/Complete road geometry is unavailable/);
+});
+
+test('normal and demo routes use top route panes, solid strokes, and endpoint markers',()=>{
+  for(const demoMode of [false,true]){
+    const a=app(),lines=[],markers=[];
+    a.context.L={
+      polyline:(coords,options)=>{lines.push({coords,options});return {addTo(){return this},bindPopup(){return this},on(){return this}}},
+      marker:(point,options)=>{markers.push({point,options});return {addTo(){return this}}},
+      divIcon:x=>x,latLngBounds:x=>x
+    };
+    a.run(`state.demoMode=${demoMode};state.map={fitBounds(){}};state.selected='selected';state.routeData={prediction_valid:true,safe_route_available:true,routes:[
+      {id:'alternate',geometry_source:'OSRM_ROAD_NETWORK',coordinates:[[19,72.84],[19.01,72.85]],risk_category:'MODERATE',distance_km:2,estimated_duration_min:6},
+      {id:'selected',geometry_source:'OSRM_ROAD_NETWORK',coordinates:[[19,72.84],[19.005,72.845],[19.01,72.85]],risk_category:'SAFE',is_recommended:true,distance_km:1.5,estimated_duration_min:5}
+    ]};renderRoutes()`);
+    assert.equal(lines.length,4);
+    assert.equal(lines[0].options.pane,'routeAlternates');
+    assert.equal(lines[2].options.pane,'routeSelected');
+    assert.equal(lines[3].options.pane,'routeSelected');
+    assert.equal(lines[3].options.dashArray,null);
+    assert.ok(lines[3].options.weight > lines[1].options.weight);
+    assert.equal(markers.length,2);
+    assert.ok(markers.every(marker=>marker.options.pane==='routeMarkers'));
+  }
 });
 
 test('numbered route options switch selection without written directions',()=>{

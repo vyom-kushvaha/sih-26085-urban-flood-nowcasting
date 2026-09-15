@@ -46,6 +46,33 @@ def test_provider_keeps_bends_and_roundabout_steps(monkeypatch):
     assert result['steps'][0]['location'] == [19.01002, 72.84001]
 
 
+def test_provider_retries_the_backup_when_primary_times_out(monkeypatch):
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *_): pass
+        def read(self):
+            return json.dumps({'code': 'Ok', 'routes': [{
+                'geometry': {'coordinates': [[72.84, 19.01], [72.85, 19.02]]},
+                'distance': 1000, 'duration': 180, 'legs': [],
+            }]}).encode()
+
+    calls = []
+    def open_request(req, **kwargs):
+        calls.append(req.full_url)
+        if 'primary.example' in req.full_url:
+            raise TimeoutError('primary timed out')
+        return Response()
+
+    monkeypatch.setattr(risk, '_OSRM_CACHE', {})
+    monkeypatch.setattr(risk.settings, 'osrm_base_urls',
+                        'https://primary.example,https://backup.example')
+    monkeypatch.setattr(risk.urllib.request, 'urlopen', open_request)
+    routes = risk.fetch_osrm_routes(19.01, 72.84, 19.02, 72.85)
+    assert routes and routes[0]['geometry_source'] == 'OSRM_ROAD_NETWORK'
+    assert any('primary.example' in url for url in calls)
+    assert any('backup.example' in url for url in calls)
+
+
 def test_no_road_provider_does_not_return_waypoint_fallback(monkeypatch):
     monkeypatch.setattr(risk, 'fetch_osrm_routes', lambda *_: [])
     monkeypatch.setattr(risk, 'local_osm_route', lambda *_: None)

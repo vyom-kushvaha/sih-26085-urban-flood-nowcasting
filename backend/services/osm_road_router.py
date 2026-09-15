@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 OSM_PILOT = ROOT / 'data/raw/pilot_downloads/20260911T180659313239Z_osm/osm_roads_waterways.json'
+MAJOR_ROADS = ROOT / 'data/processed/mumbai_major_roads.json'
 NON_DRIVING = {'footway', 'path', 'steps', 'pedestrian', 'cycleway', 'bridleway'}
 
 
@@ -20,30 +21,63 @@ def distance_m(a, b):
 
 @lru_cache(maxsize=1)
 def graph():
-    if not OSM_PILOT.is_file():
-        return {}, {}
-    elements = json.loads(OSM_PILOT.read_text(encoding='utf-8'))['elements']
-    nodes = {item['id']: (item['lat'], item['lon']) for item in elements if item['type'] == 'node'}
-    adjacent = {node_id: [] for node_id in nodes}
-    for way in (item for item in elements if item['type'] == 'way'):
-        tags = way.get('tags', {})
-        if not tags.get('highway') or tags.get('highway') in NON_DRIVING | {'construction', 'proposed'}:
-            continue
-        access = tags.get('motorcar', tags.get('motor_vehicle', tags.get('vehicle', tags.get('access'))))
-        if access in {'no', 'private'}:
-            continue
-        ids = way.get('nodes', [])
-        oneway = str(tags.get('oneway', 'yes' if tags.get('junction') == 'roundabout' or tags.get('highway') == 'motorway' else 'no')).lower()
-        for start, end in zip(ids, ids[1:]):
-            # A missing node breaks the road; never bridge the gap with a chord.
-            if start not in nodes or end not in nodes:
+    if OSM_PILOT.is_file():
+        elements = json.loads(OSM_PILOT.read_text(encoding='utf-8'))['elements']
+        nodes = {item['id']: (item['lat'], item['lon']) for item in elements if item['type'] == 'node'}
+        adjacent = {node_id: [] for node_id in nodes}
+        for way in (item for item in elements if item['type'] == 'way'):
+            tags = way.get('tags', {})
+            if not tags.get('highway') or tags.get('highway') in NON_DRIVING | {'construction', 'proposed'}:
                 continue
-            cost = distance_m(nodes[start], nodes[end])
-            if oneway != '-1':
-                adjacent[start].append((end, cost))
-            if oneway not in {'yes', '1', 'true'}:
-                adjacent[end].append((start, cost))
-    return nodes, adjacent
+            access = tags.get('motorcar', tags.get('motor_vehicle', tags.get('vehicle', tags.get('access'))))
+            if access in {'no', 'private'}:
+                continue
+            ids = way.get('nodes', [])
+            oneway = str(tags.get('oneway', 'yes' if tags.get('junction') == 'roundabout' or tags.get('highway') == 'motorway' else 'no')).lower()
+            for start, end in zip(ids, ids[1:]):
+                if start not in nodes or end not in nodes:
+                    continue
+                cost = distance_m(nodes[start], nodes[end])
+                if oneway != '-1':
+                    adjacent[start].append((end, cost))
+                if oneway not in {'yes', '1', 'true'}:
+                    adjacent[end].append((start, cost))
+        return nodes, adjacent
+
+    if MAJOR_ROADS.is_file():
+        data = json.loads(MAJOR_ROADS.read_text(encoding='utf-8'))
+        ways = data.get('ways', [])
+        nodes = {}
+        adjacent = {}
+        node_map = {}
+        next_id = 1
+        for way in ways:
+            highway = way.get('highway')
+            if not highway or highway in NON_DRIVING | {'construction', 'proposed'}:
+                continue
+            coords = way.get('coordinates', [])
+            if len(coords) < 2:
+                continue
+            oneway = str(way.get('oneway', 'no')).lower()
+            prev_node_id = None
+            for pt in coords:
+                key = (round(pt[0], 5), round(pt[1], 5))
+                if key not in node_map:
+                    node_map[key] = next_id
+                    nodes[next_id] = (pt[0], pt[1])
+                    adjacent[next_id] = []
+                    next_id += 1
+                curr_node_id = node_map[key]
+                if prev_node_id is not None and prev_node_id != curr_node_id:
+                    cost = distance_m(nodes[prev_node_id], nodes[curr_node_id])
+                    if oneway != '-1':
+                        adjacent[prev_node_id].append((curr_node_id, cost))
+                    if oneway not in {'yes', '1', 'true'}:
+                        adjacent[curr_node_id].append((prev_node_id, cost))
+                prev_node_id = curr_node_id
+        return nodes, adjacent
+
+    return {}, {}
 
 
 def nearest(nodes, adjacent, point, maximum_m=250):
