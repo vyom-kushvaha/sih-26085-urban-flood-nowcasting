@@ -44,7 +44,7 @@ async function loadVisibleRoadExposure(){
 }
 function scheduleVisibleRoadExposure(){clearTimeout(roadExposureTimer);roadExposureTimer=setTimeout(loadVisibleRoadExposure,350);}
 function setMapMode(demo){
-  if(state.savedManifest)clearSavedForecast();
+  clearSavedForecast();
   if(state.demoMode===demo)return;
   state.demoMode=demo;state.exposureRequest++;state.exposure?.clearLayers();
   $('mode-demo').setAttribute('aria-selected',String(demo));
