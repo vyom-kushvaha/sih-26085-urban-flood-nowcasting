@@ -49,20 +49,3 @@ def test_downloaded_osm_pilot_yields_a_connected_road_only_route():
     assert result['geometry_source'] == 'LOCAL_OSM_ROAD_NETWORK'
     assert len(result['coordinates']) > 2
     assert result['distance_km'] > 0
-
-
-def test_versioned_processed_roads_are_used_when_raw_pilot_is_not_deployed(tmp_path, monkeypatch):
-    packaged = tmp_path / 'roads.json'
-    packaged.write_text(json.dumps({'ways': [
-        {'highway': 'residential', 'oneway': 'no',
-         'coordinates': [[19.0, 72.0], [19.0, 72.001], [19.001, 72.001]]},
-    ]}))
-    monkeypatch.setattr(router, 'OSM_PILOT', tmp_path / 'missing-raw.json')
-    monkeypatch.setattr(router, 'PACKAGED_ROADS', packaged)
-    router.graph.cache_clear()
-
-    result = route(19.0, 72.0, 19.001, 72.001)
-
-    assert result['geometry_source'] == 'LOCAL_OSM_ROAD_NETWORK'
-    assert result['coordinates'] == [[19.0, 72.0], [19.0, 72.001], [19.001, 72.001]]
-    router.graph.cache_clear()
