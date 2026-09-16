@@ -46,7 +46,7 @@ def test_frontend_exposes_honest_demo_switch():
     assert 'id="mode-demo"' in html
     assert 'id="mode-live"' in html
     assert "demoMode:true" in client.get("/static/platform.js").text
-    assert "hour:2" in client.get("/static/platform.js").text
+    assert "hour:0" in client.get("/static/platform.js").text
     assert "DEMO_MAP_ZOOM = 16" in client.get("/static/platform.js").text
     assert "/api/v1/roads/demo-exposure" in js
     assert "SIMULATED · NOT LIVE" in js
