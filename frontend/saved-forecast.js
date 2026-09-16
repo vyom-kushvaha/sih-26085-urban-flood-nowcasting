@@ -40,7 +40,7 @@ async function showSavedLead(minute, fit=false){
     const [depth,drainage,roads,hotspots]=await Promise.all([api(snapshot.layers.depth),api(snapshot.layers.drainage),api(snapshot.layers.roads),api(snapshot.layers.hotspots)]);
     if(generation!==savedGeneration)return;
     if(!state.map||typeof L==='undefined')throw Error('Map is unavailable.');
-    const polygons=L.geoJSON(depth,{style:f=>({color:'#003776',weight:.6,fillColor:f.properties.depth_cm>30?'#b33f43':f.properties.depth_cm>5?'#ed963e':'#448dcc',fillOpacity:f.properties.depth_cm>0?.55:.08})});
+    const polygons=L.geoJSON(depth,{style:f=>({color:'#003776',weight:.6,fillColor:f.properties.depth_cm>30?'#dc2626':f.properties.depth_cm>10?'#f59e0b':'#16a34a',fillOpacity:f.properties.depth_cm>0?.55:.08})});
     polygons.eachLayer(layer=>layer.bindPopup(`Saved model output · T+${minute} min<br>Depth: ${Number(layer.feature.properties.depth_cm).toFixed(2)} cm`));
     const nodes=L.geoJSON(drainage,{pointToLayer:(f,p)=>L.circleMarker(p,{radius:5,color:'#003776',fillColor:'#fff',fillOpacity:1})});
     nodes.eachLayer(layer=>{const p=layer.feature.properties;layer.bindPopup(`${esc(p.id)} · ${esc(p.kind)}<br>Node depth: ${p.depth_m===null?'Boundary node':Number(p.depth_m).toFixed(3)+' m'}<br>Stress: ${esc(p.stress)}<br>Water returned to surface: ${p.exchange_totals?Number(p.exchange_totals.surcharge_returned_m3).toFixed(3)+' m³ since run start':'Not saved'}`);});
@@ -59,7 +59,7 @@ async function showSavedLead(minute, fit=false){
     $('sources').innerHTML=[['Selected saved run',id],['Valid model time',depth.valid_time],['Terrain source',depth.terrain_source],['Output quality',depth.output_quality],['Model status','Saved prototype; validation pending']].map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     $('risk-count').textContent=hotspots.summary.high_risk_clusters;
     $('map-message').textContent='Saved prototype forecast. Candidate routes are compared against this run and time.';
-    document.querySelector('.legend').innerHTML='<span class="eyebrow">SAVED MODEL ROAD DEPTH</span><div>Green &lt;5 cm · Amber 5–15 cm · Red &gt;15–30 cm · Dark red &gt;30 cm</div><small>Grey: unknown · Prototype output · No safety certification</small>';
+    document.querySelector('.legend').innerHTML='<span class="eyebrow">SAVED MODEL ROAD DEPTH</span><div><i style="background:#16a34a"></i>≤10 cm <i style="background:#f59e0b"></i>10–30 cm <i style="background:#dc2626"></i>&gt;30 cm</div><small>Grey: unknown · Prototype output · No safety certification</small>';
     if(fit&&polygons.getBounds().isValid())state.map.fitBounds(polygons.getBounds(),{padding:[30,30],maxZoom:18});
     $('saved-run-status').textContent=`Saved prototype · T+${minute} min · ${depth.valid_time}. Terrain: ${depth.terrain_source}. Overlay blue/orange/red represents model depth, not route safety.`;
     $('saved-run-timeline').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.minute)===minute)));
