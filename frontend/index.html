@@ -17,12 +17,12 @@
   <script defer src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script defer src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
   <script defer src="/static/map-gestures.js?v=20260912-local-view"></script>
-  <script defer src="/static/live-routes.js?v=20260913-live"></script>
-  <script defer src="/static/road-exposure.js?v=20260914-saved-map"></script>
-  <script defer src="/static/civic-operations.js?v=20260914-release"></script>
-  <script defer src="/static/saved-routes.js?v=20260914-release"></script>
-  <script defer src="/static/platform.js?v=20260914-saved-map"></script>
-  <script defer src="/static/saved-forecast.js?v=20260914-saved-map"></script>
+  <script defer src="/static/live-routes.js?v=20260916-color-unify"></script>
+  <script defer src="/static/road-exposure.js?v=20260916-color-unify"></script>
+  <script defer src="/static/civic-operations.js?v=20260916-color-unify"></script>
+  <script defer src="/static/saved-routes.js?v=20260916-color-unify"></script>
+  <script defer src="/static/platform.js?v=20260916-color-unify"></script>
+  <script defer src="/static/saved-forecast.js?v=20260916-color-unify"></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -49,8 +49,8 @@
         </div>
         <div class="map-status"><span><i class="tiny-dot"></i> <b id="nowcast-status">Nowcast unavailable</b></span><span>High-risk areas <b id="risk-count">—</b></span><span id="updated">Last updated: Not Available</span></div>
         <div class="map-mode-tabs" role="tablist" aria-label="Map data mode"><button id="mode-demo" type="button" role="tab" aria-selected="true">Demo Scenario <small>SIMULATED</small></button><button id="mode-live" type="button" role="tab" aria-selected="false">Live Data <small>REAL-TIME</small></button></div>
-        <div class="map-controls"><button id="mumbai-default" title="Return to the default Mumbai area" aria-label="Mumbai default area">◎ <span>Mumbai Default</span></button></div>
-        <div id="map-message" class="map-message" role="status">Loading the illustrative Mumbai monsoon demonstration.</div>
+        <div class="map-controls"><button id="mumbai-default" title="Return to the default Mumbai area" aria-label="Mumbai default area">◎ <span>Mumbai Default</span></button><button id="go-to-start" title="Zoom to route start (Point A)" aria-label="Go to route start">📍 <span>Route Start</span></button></div>
+        <div id="map-message" class="map-message" role="status" style="display:none"></div>
         <div id="location-details" class="location-details" hidden></div>
         <div class="legend"><span class="eyebrow">PREDICTED ROAD RISK</span><div><i style="background:#27865d"></i>Low <i style="background:#d4ad2f"></i>Moderate <i style="background:#e47e32"></i>High <i style="background:#cb4545"></i>Critical</div><small>Grey: no valid assessment · Closure: official restriction</small></div>
         <section class="forecast-dock" aria-label="Point forecast time controls">

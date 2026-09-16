@@ -7,13 +7,11 @@ from backend.services.road_exposure import road_ways
 def classify_depth(cm):
     if cm is None:
         return 'UNKNOWN', '#64748b'
-    if cm < 5:
+    if cm <= 10:
         return 'LOW', '#16a34a'
-    if cm <= 15:
-        return 'MODERATE', '#f59e0b'
     if cm <= 30:
-        return 'HIGH', '#dc2626'
-    return 'CRITICAL', '#991b1b'
+        return 'MODERATE', '#f59e0b'
+    return 'CRITICAL', '#dc2626'
 
 
 def forecast_roads(result, snapshot, ways=None):
@@ -77,4 +75,4 @@ def forecast_roads(result, snapshot, ways=None):
         'terrain_source':result.get('terrain_source', 'UNKNOWN'),
         'limitations':result.get('limitations', []) + ['Centre-line cell intersections; depth bands are not vehicle passability or official closures.'],
         'legend':[{'risk':risk,'color':color} for risk,color in
-                  [classify_depth(v) for v in (0,10,20,40,None)]]}
+                  [classify_depth(v) for v in (0,20,40,None)]]}

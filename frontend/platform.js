@@ -11,9 +11,10 @@ const DEMO_MAP_ZOOM = 16;
 const state = {hour:2,demoMode:true,position:null,map:null,routeData:null,selected:null,forecast:null,request:0,forecastRequest:0,exposureRequest:0,forecastDetailsOpen:false,photo:null,reportPosition:null};
 const colours = {Low:'#27865d',Moderate:'#d4ad2f',High:'#e47e32',Critical:'#cb4545',Unavailable:'#64748b'};
 const hourLabel = h => ['NOW','+1 HOUR','+2 HOURS','+3 HOURS'][h];
-const depthRisk = d => !Number.isFinite(d) ? 'Unavailable' : d<=5?'Low':d<=15?'Moderate':d<=30?'High':'Critical';
+const depthRisk = d => !Number.isFinite(d) ? 'Unavailable' : d<=10?'Low':d<=30?'Moderate':'Critical';
 const withinMumbai = p => p && p.lat>=18.89 && p.lat<=19.30 && p.lng>=72.77 && p.lng<=72.99;
 const riskDisplayName = category => ({SAFE:'Low',MODERATE:'Moderate',DANGER:'Critical'})[category]||category;
+function heading(k,title,description){return `<div class="page-heading"><div><div class="eyebrow">${k}</div><h1>${title}</h1><p>${description}</p></div></div>`;}
 async function api(path,options={}){const controller=new AbortController();const longRunning=path.includes('/routing/')||path.includes('/roads/');const timeout=setTimeout(()=>controller.abort(),longRunning?60000:20000);try{const response=await fetch(API_BASE+path,{...options,signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Service unavailable');return data;}finally{clearTimeout(timeout);}}
 function nearby(p){if(!state.map)return;state.map.setView([p.lat,p.lng],LOCAL_MAP_ZOOM,{animate:false});}
 function initMap(){
@@ -29,8 +30,8 @@ function initMap(){
   const exposurePane=state.map.createPane('roadExposure');exposurePane.style.zIndex=405;state.roadRenderer=L.canvas({pane:'roadExposure',padding:.5});
   const routeExposurePane=state.map.createPane('routeExposure');routeExposurePane.style.zIndex=620;routeExposurePane.style.pointerEvents='none';
   const alternateRoutePane=state.map.createPane('routeAlternates');alternateRoutePane.style.zIndex=630;
-  const selectedRoutePane=state.map.createPane('routeSelected');selectedRoutePane.style.zIndex=640;
-  const routeMarkerPane=state.map.createPane('routeMarkers');routeMarkerPane.style.zIndex=650;
+  const selectedRoutePane=state.map.createPane('routeSelected');selectedRoutePane.style.zIndex=700;
+  const routeMarkerPane=state.map.createPane('routeMarkers');routeMarkerPane.style.zIndex=710;
   state.exposure=L.layerGroup().addTo(state.map);state.routes=L.layerGroup().addTo(state.map);state.markers=L.layerGroup().addTo(state.map);
   state.map.on('click',e=>{if(!state.demoMode)loadForecast(e.latlng);});
   state.map.on('moveend zoomend',scheduleVisibleRoadExposure);
@@ -78,6 +79,7 @@ function useLocation(forReport=false){
   },()=>{message.textContent='Location unavailable. Allow location access or enter your starting point.';},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
 }
 function updatePosition(){if(!state.map||!state.position)return;if(state.userMarker)state.userMarker.setLatLng(state.position);else state.userMarker=L.marker(state.position,{icon:L.divIcon({className:'',html:'<div class="current-dot"></div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(state.map).bindPopup('Your current location');}
+function goToRouteStart(){if(!state.map)return;const route=state.routeData?.routes?.find(r=>r.id===state.selected);const coords=route?.coordinates;if(!coords||coords.length<2)return;state.map.setView(coords[0],16,{animate:true});}
 function showMumbaiDefault(){const centre=state.demoMode?DEMO_DEFAULT:MUMBAI_DEFAULT,zoom=state.demoMode?DEMO_MAP_ZOOM:CITY_MAP_ZOOM;state.map?.setView([centre.lat,centre.lng],zoom,{animate:false});$('origin').value='Hindmata, Mumbai';$('destination').value='Dadar, Mumbai';$('map-message').textContent=state.demoMode?'Showing the Sion demo area at street level. Pan or zoom to inspect other Mumbai roads.':'Showing Greater Mumbai live road screening.';scheduleVisibleRoadExposure();}
 function renderTimeline(){
   const saved=state.savedManifest;
@@ -161,8 +163,9 @@ function renderRoutes(){
 function validRoadCoordinates(coords){return coords.length>=2&&coords.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=90&&Math.abs(p[1])<=180);}
 function drawRoadRoute(coords,{selected=false,colour=colours.Unavailable,popup='',onClick}={}){
   const pane=selected?'routeSelected':'routeAlternates';
+  const lineColour=selected?'#000000':colour;
   L.polyline(coords,{pane,smoothFactor:0,lineCap:'round',lineJoin:'round',color:'#ffffff',weight:selected?14:9,opacity:selected?.98:.65,interactive:false}).addTo(state.routes);
-  const line=L.polyline(coords,{pane,smoothFactor:0,lineCap:'round',lineJoin:'round',color:colour,weight:selected?8:4,opacity:selected?1:.70,dashArray:null}).addTo(state.routes);
+  const line=L.polyline(coords,{pane,smoothFactor:0,lineCap:'round',lineJoin:'round',color:lineColour,weight:selected?8:4,opacity:selected?1:.70,dashArray:null}).addTo(state.routes);
   if(popup)line.bindPopup(popup);
   if(onClick)line.on('click',onClick);
   return line;
@@ -398,11 +401,12 @@ function about(){
 }
 
 function login(){renderMunicipalLogin();}
+function dashboard(municipal=false){renderCivicDashboard(municipal);}
 function navigate(){stopCameraStream();civicGeneration++;clearPrivatePhotos();const page=(location.hash||'#/map').replace('#/','');const known=['map','dashboard','report','about','login','municipality'];if(!known.includes(page)){location.hash='#/map';return;}document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#/'+page));$('map-page').hidden=page!=='map';$('content-page').hidden=page==='map';if(page==='map'){setTimeout(()=>state.map?.invalidateSize(),0);}else{({dashboard:()=>dashboard(),report,about,login,municipality:()=>dashboard(true)})[page]();}document.title=`R.A.K.S.H.A.K. · ${page==='map'?'Live Map':page[0].toUpperCase()+page.slice(1)}`;}
 renderTimeline();renderSources();initMap();navigate();
 document.querySelector('.skip').onclick=e=>{e.preventDefault();$('main').focus();};
 document.querySelector('.hero-action').onclick=e=>{e.preventDefault();$('route-form').scrollIntoView({behavior:'smooth',block:'center'});$('origin').focus({preventScroll:true});};
 window.addEventListener('hashchange',navigate);
-$('route-form').onsubmit=findRoute;$('mumbai-default').onclick=showMumbaiDefault;
+$('route-form').onsubmit=findRoute;$('mumbai-default').onclick=showMumbaiDefault;$('go-to-start').onclick=goToRouteStart;
 $('mode-demo').onclick=()=>setMapMode(true);$('mode-live').onclick=()=>setMapMode(false);
 
