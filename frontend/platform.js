@@ -8,7 +8,7 @@ const DEMO_DEFAULT = {lat:19.0434,lng:72.8614};
 const LOCAL_MAP_ZOOM = 15;
 const CITY_MAP_ZOOM = 11;
 const DEMO_MAP_ZOOM = 16;
-const state = {hour:2,demoMode:true,position:null,map:null,routeData:null,selected:null,forecast:null,request:0,forecastRequest:0,exposureRequest:0,forecastDetailsOpen:false,photo:null,reportPosition:null};
+const state = {hour:0,demoMode:true,position:null,map:null,routeData:null,selected:null,forecast:null,request:0,forecastRequest:0,exposureRequest:0,forecastDetailsOpen:false,photo:null,reportPosition:null};
 const colours = {Low:'#27865d',Moderate:'#d4ad2f',High:'#e47e32',Critical:'#cb4545',Unavailable:'#64748b'};
 const hourLabel = h => ['NOW','+1 HOUR','+2 HOURS','+3 HOURS'][h];
 const depthRisk = d => !Number.isFinite(d) ? 'Unavailable' : d<=10?'Low':d<=30?'Moderate':'Critical';
