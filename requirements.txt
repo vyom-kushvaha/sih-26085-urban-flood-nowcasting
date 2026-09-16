@@ -13,3 +13,5 @@ pyproj>=3.7.0
 sqlalchemy>=2.0.0
 alembic>=1.13.0
 geoalchemy2>=0.14.0
+shapely>=2.0.0
+
