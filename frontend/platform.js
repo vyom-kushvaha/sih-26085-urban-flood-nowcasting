@@ -377,26 +377,61 @@ function report(){
 }
 
 function about(){
-  $('content-page').innerHTML = heading('ABOUT R.A.K.S.H.A.K.','Real-Time Urban Flood Nowcasting &amp; Safe Journey System','SIH 26085 · Intelligent Decision Support for Resilient Urban Mobility')+
-    '<div class="panel">'+
-      '<h2>Mission &amp; Overview</h2>'+
-      '<p><b>R.A.K.S.H.A.K.</b> (Real-time Assessment &amp; Knowledge System for Hydrological Alerts &amp; Kinematics) is an advanced urban flood nowcasting and journey hazard evaluation platform engineered for the Mumbai metropolitan region. The system bridges satellite meteorology, high-resolution terrain modeling, and street-level drainage networks to deliver 0–3 hour inundation forecasts and flood-safe routing.</p>'+
-      '<div class="flow">'+['Numerical Rainfall Nowcasting','DEM Terrain Infiltration','Stormwater Drainage Graph','Hydrodynamic Risk Engine','0–3h Nowcast Grid','Flood-Aware Routing'].map((p,i)=>`${i?'→':''}<span>${p}</span>`).join('')+'</div>'+
+  $('content-page').innerHTML = heading('YOUR MONSOON SAFETY COMPANION','About R.A.K.S.H.A.K.','Street-level flood depth forecasts & safe navigation built for Mumbai commuters')+
+    '<div class="panel" style="border-left: 5px solid #003776;">'+
+      '<h2 style="font-size:18px; margin-bottom:12px;">🌧️ What is R.A.K.S.H.A.K.?</h2>'+
+      '<p style="font-size:14px; line-height:1.7; color:#1e293b;">Every monsoon, Mumbai streets submerge within minutes. Normal navigation maps show you red traffic lines, but they cannot tell you <b>why</b> traffic is stopped — is it a regular delay, or is the road trapped under 2 feet of water?</p>'+
+      '<p style="font-size:14px; line-height:1.7; color:#1e293b;"><b>R.A.K.S.H.A.K.</b> (Real-time Assessment &amp; Knowledge System for Hydrological Alerts) changes that. It gives you <b>street-by-street water depth predictions</b> and guides you through elevated, flood-free corridors so your vehicle never gets stalled in submerged underpasses.</p>'+
     '</div>'+
     '<div class="panel">'+
-      '<h2>Core Capabilities</h2>'+
-      '<div class="feature-list">'+
-        '<div>↗ <b>Dynamic Flood-Aware Routing:</b> Avoids known depression basins (Hindmata, Sion Underpass, Kurla LBS, Milan Subway) and guides drivers through elevated ridges and flyovers.</div>'+
-        '<div>↗ <b>Physical Hydrology Engine:</b> Calculates water depth accumulation (0–100 cm) based on rainfall intensity, slope deficit, and stormwater pipe blockage percentages.</div>'+
-        '<div>↗ <b>Color-Coded Passability Rules:</b> Green (≤10 cm: Passable), Orange (10–30 cm: Risky), and Red (>30 cm: Impassable / Blocked).</div>'+
-        '<div>↗ <b>Municipal Incident Console:</b> Enables disaster response authorities to review citizen reports, verify water depth, and broadcast public emergency notices.</div>'+
-        '<div>↗ <b>Offline Road Graph Resilience:</b> Fallback local road network ensures routing never fails even during severe external network outages.</div>'+
+      '<h2 style="font-size:18px; margin-bottom:16px;">🚦 How to Read the Map: Road Risk Colors</h2>'+
+      '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px;">'+
+        '<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:16px;">'+
+          '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:#16a34a;"></span><b style="color:#15803d; font-size:15px;">Green — Safe to Drive</b></div>'+
+          '<p style="margin:0; font-size:13px; color:#166534; line-height:1.6;">Water depth is <b>≤10 cm</b> (or light rain &lt;5 mm/h). Roads are clear and passable for all two-wheelers, hatchbacks, and buses.</p>'+
+        '</div>'+
+        '<div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:16px;">'+
+          '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:#f59e0b;"></span><b style="color:#b45309; font-size:15px;">Orange — Caution &amp; Risky</b></div>'+
+          '<p style="margin:0; font-size:13px; color:#92400e; line-height:1.6;">Water depth is <b>10–30 cm</b> (or rainfall 5–20 mm/h). Significant water ponding. Unsafe for scooters and low-clearance cars. Proceed with caution.</p>'+
+        '</div>'+
+        '<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:16px;">'+
+          '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:#dc2626;"></span><b style="color:#b91c1c; font-size:15px;">Red — Severe Flood / Blocked</b></div>'+
+          '<p style="margin:0; font-size:13px; color:#991b1b; line-height:1.6;">Water depth is <b>&gt;30 cm</b> (or heavy rain &gt;20 mm/h). Road is likely flooded or closed. High risk of engine hydro-lock. Do not enter.</p>'+
+        '</div>'+
       '</div>'+
     '</div>'+
     '<div class="panel">'+
-      '<h2>Data Integrity &amp; Transparency</h2>'+
-      '<p class="muted">This platform clearly distinguishes between <b>Live Meteorological Screening</b> (Open-Meteo &amp; MET Norway models), <b>Coupled Hydrodynamic Simulation</b>, and <b>Illustrative Demonstration Scenarios</b>. Green road indication denotes low evaluated inundation hazard within modeled boundaries, not an absolute legal safety warranty.</p>'+
-      '<small>SIH Problem Statement 26085 · Built for Mumbai Metropolitan Region.</small>'+
+      '<h2 style="font-size:18px; margin-bottom:16px;">⚙️ How It Works Behind the Scenes</h2>'+
+      '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">'+
+        '<div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:#f8fafc;">'+
+          '<b style="color:#003776; display:block; margin-bottom:6px;">1. Live Weather Feeds 🌧️</b>'+
+          '<p style="margin:0; font-size:12px; color:#475569; line-height:1.5;">Pulls real-time cloudburst &amp; rainfall data from open meteorological models across Mumbai wards.</p>'+
+        '</div>'+
+        '<div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:#f8fafc;">'+
+          '<b style="color:#003776; display:block; margin-bottom:6px;">2. Slopes &amp; Depressions 🗺️</b>'+
+          '<p style="margin:0; font-size:12px; color:#475569; line-height:1.5;">Analyzes Mumbai ground elevation to identify which underpasses, subways, and low basins collect runoff first.</p>'+
+        '</div>'+
+        '<div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:#f8fafc;">'+
+          '<b style="color:#003776; display:block; margin-bottom:6px;">3. Safe Route Engine 🧭</b>'+
+          '<p style="margin:0; font-size:12px; color:#475569; line-height:1.5;">Calculates multiple paths between your origin and destination, routing you over bridges and ridges to avoid flood choke points.</p>'+
+        '</div>'+
+        '<div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:#f8fafc;">'+
+          '<b style="color:#003776; display:block; margin-bottom:6px;">4. Citizen Ground-Truth 📸</b>'+
+          '<p style="margin:0; font-size:12px; color:#475569; line-height:1.5;">Commuters submit geo-tagged water photos, updating road statuses instantly for everyone and alerting the municipality.</p>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="panel">'+
+      '<h2 style="font-size:18px; margin-bottom:12px;">🛡️ Safe Monsoon Driving Tips</h2>'+
+      '<ul style="font-size:13px; line-height:1.8; color:#334155; margin:0; padding-left:20px;">'+
+        '<li><b>Check before you depart:</b> Enter your start and destination in R.A.K.S.H.A.K. to find the dry corridor before entering heavy rain.</li>'+
+        '<li><b>The 15 cm Rule:</b> Never drive a two-wheeler or hatchback through water deeper than half of your wheel rim.</li>'+
+        '<li><b>Avoid known flash points:</b> Depressions like Hindmata, Milan Subway, Andheri Subway, and Kurla LBS accumulate water rapidly during high tide + rain.</li>'+
+        '<li><b>Help your fellow citizens:</b> If you spot waterlogging, tap the <b>Report</b> tab to submit a quick location report.</li>'+
+      '</ul>'+
+    '</div>'+
+    '<div style="text-align:center; padding:10px 0; color:#64748b; font-size:12px;">'+
+      'R.A.K.S.H.A.K. · Built with pride for the Mumbai Metropolitan Region · Designed for Commuter Safety'+
     '</div>';
 }
 
