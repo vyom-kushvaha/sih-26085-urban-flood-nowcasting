@@ -7,7 +7,7 @@ from collections import deque
 from typing import Annotated, Literal
 try:
     from pyproj import Geod
-except ImportError:
+except (ImportError, OSError):
     Geod = None  # type: ignore[assignment,misc]
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -173,3 +173,4 @@ def inspect_graph(graph: DrainGraph) -> dict:
                             'Provided alignment is preserved and endpoint-checked; absent alignment uses a labelled endpoint chord.',
                             'Topology QA does not validate terrain, survey accuracy or flood safety.'],
             'geojson': {'type': 'FeatureCollection', 'features': features}}
+

@@ -3,7 +3,7 @@ import numpy as np
 try:
     from pyproj import CRS
     from pyproj.exceptions import CRSError
-except ImportError:
+except (ImportError, OSError):
     CRS = None  # type: ignore[assignment,misc]
     CRSError = ValueError  # type: ignore[assignment,misc]
 from pydantic import BaseModel, ConfigDict, Field
@@ -54,3 +54,4 @@ def remap_rainfall(values, grid: RainGrid, surface):
                     'source_footprint_rate_m3_hr': source_volume,
                     'target_rate_m3_hr': target_volume,
                     'residual_rate_m3_hr': source_volume - target_volume}
+
