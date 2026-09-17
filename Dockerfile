@@ -5,7 +5,6 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libexpat1 \
-    libgdal34 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements-deploy.txt ./
