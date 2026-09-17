@@ -1,9 +1,11 @@
 /* R.A.K.S.H.A.K. frontend. Existing APIs only; unavailable services never fabricate results. */
 'use strict';
-const API_BASE = (window.RAKSHAK_API_BASE || location.origin).replace(/\/$/, '');
-const $ = id => document.getElementById(id);
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+var API_BASE = (window.RAKSHAK_API_BASE || location.origin).replace(/\/$/, '');
+var $ = window.$ = window.$ || (id => document.getElementById(id));
+var esc = window.esc = window.esc || (value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
+var heading = window.heading = window.heading || ((eyebrow, title, subtitle) => `<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></div>`);
 const MUMBAI_DEFAULT = {lat:19.10,lng:72.87};
+
 const DEMO_DEFAULT = {lat:19.0434,lng:72.8614};
 const LOCAL_MAP_ZOOM = 15;
 const CITY_MAP_ZOOM = 11;
@@ -14,7 +16,8 @@ const hourLabel = h => ['NOW','+1 HOUR','+2 HOURS','+3 HOURS'][h];
 const depthRisk = d => !Number.isFinite(d) ? 'Unavailable' : d<=10?'Low':d<=30?'Moderate':'Critical';
 const withinMumbai = p => p && p.lat>=18.89 && p.lat<=19.30 && p.lng>=72.77 && p.lng<=72.99;
 const riskDisplayName = category => ({SAFE:'Low',MODERATE:'Moderate',DANGER:'Critical'})[category]||category;
-function heading(k,title,description){return `<div class="page-heading"><div><div class="eyebrow">${k}</div><h1>${title}</h1><p>${description}</p></div></div>`;}
+var civicGeneration = window.civicGeneration = window.civicGeneration || 0;
+if(typeof clearPrivatePhotos !== 'function') { var clearPrivatePhotos = function(){}; }
 async function api(path,options={}){const controller=new AbortController();const longRunning=path.includes('/routing/')||path.includes('/roads/');const timeout=setTimeout(()=>controller.abort(),longRunning?60000:20000);try{const response=await fetch(API_BASE+path,{...options,signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Service unavailable');return data;}finally{clearTimeout(timeout);}}
 function nearby(p){if(!state.map)return;state.map.setView([p.lat,p.lng],LOCAL_MAP_ZOOM,{animate:false});}
 function initMap(){
@@ -51,16 +54,20 @@ function initBasemap(){
   let vector,loadTimeout,fallbackActive=false;
   const fallback=()=>{
     if(fallbackActive)return;fallbackActive=true;clearTimeout(loadTimeout);
-    if(vector)state.map.removeLayer(vector);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,className:'fallback-basemap',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(state.map);
-    $('map-message').textContent='Light basemap unavailable. Showing the standard street map.';
+    if(vector&&state.map)try{state.map.removeLayer(vector);}catch{}
+    if(state.map)L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,className:'fallback-basemap',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(state.map);
+    if($('map-message'))$('map-message').textContent='Light basemap unavailable. Showing standard street map.';
   };
   try{
     if(typeof L.maplibreGL!=='function')return fallback();
     vector=L.maplibreGL({style:'/static/light-map-style.json?v=1',interactive:false,attribution:'<a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://openmaptiles.org/">OpenMapTiles</a> · © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(state.map);
     state.map.setMaxZoom(19);
-    loadTimeout=setTimeout(fallback,20000);
-    vector.getMaplibreMap().once('load',()=>clearTimeout(loadTimeout));
+    loadTimeout=setTimeout(fallback,3500);
+    const mgl = typeof vector.getMaplibreMap === 'function' ? vector.getMaplibreMap() : null;
+    if(mgl){
+      mgl.once('load',()=>clearTimeout(loadTimeout));
+      mgl.once('error',fallback);
+    }
     state.map.once('unload',()=>clearTimeout(loadTimeout));
   }catch(e){fallback();}
 }
@@ -435,13 +442,120 @@ function about(){
     '</div>';
 }
 
-function login(){renderMunicipalLogin();}
-function dashboard(municipal=false){renderCivicDashboard(municipal);}
-function navigate(){stopCameraStream();civicGeneration++;clearPrivatePhotos();const page=(location.hash||'#/map').replace('#/','');const known=['map','dashboard','report','about','login','municipality'];if(!known.includes(page)){location.hash='#/map';return;}document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#/'+page));$('map-page').hidden=page!=='map';$('content-page').hidden=page==='map';if(page==='map'){setTimeout(()=>state.map?.invalidateSize(),0);}else{({dashboard:()=>dashboard(),report,about,login,municipality:()=>dashboard(true)})[page]();}document.title=`R.A.K.S.H.A.K. · ${page==='map'?'Live Map':page[0].toUpperCase()+page.slice(1)}`;}
+window.updateTopNavigation = function(){
+  if(typeof document === 'undefined' || typeof document.querySelector !== 'function') return;
+  const session = typeof getUserSession === 'function' ? getUserSession() : { role: 'public' };
+  const topbar = document.querySelector('.topbar');
+  if(!topbar) return;
+  
+  let brandHtml = '';
+  let navHtml = '';
+  let portalHtml = '';
+  
+  if(session.role === 'municipality' || session.role === 'admin' || session.role === 'officer'){
+    brandHtml = `<a class="brand" href="#/map"><span class="brand-icon">≈</span><span>R.A.K.S.H.A.K.<small>BMC Disaster Command &amp; Flood Operations</small></span><span style="background:rgba(255,255,255,0.18); color:#e2e8f0; font-size:10px; font-weight:700; padding:3px 10px; border-radius:99px; margin-left:8px; border:1px solid rgba(255,255,255,0.3); letter-spacing:.4px;">🏛️ MUNICIPALITY</span></a>`;
+    navHtml = `<a href="#/map">Live Map</a><a href="#/dashboard">Municipality Dashboard</a><a href="#/about">About</a>`;
+    portalHtml = `<button id="header-logout-btn" class="portal-link" style="background:#dc2626; color:#ffffff; border:none; cursor:pointer; font-weight:700; border-radius:100px; padding:10px 18px;">🚪 Logout (Municipality) ⏻</button>`;
+  } else {
+    brandHtml = `<a class="brand" href="#/map"><span class="brand-icon">≈</span><span>R.A.K.S.H.A.K.<small>Real-time Assessment &amp; Knowledge System<br>for Hydrological Alerts</small></span></a>`;
+    navHtml = `<a href="#/map">Live Map</a><a href="#/dashboard">Dashboard</a><a href="#/report">Report</a><a href="#/about">About</a>`;
+    portalHtml = `<a class="portal-link" href="#/login">Municipality Login <span>↗</span></a>`;
+  }
+
+  topbar.innerHTML = `${brandHtml}<nav aria-label="Main navigation">${navHtml}</nav>${portalHtml}`;
+  
+  const logoutBtn = $('header-logout-btn');
+  if(logoutBtn) logoutBtn.onclick = logoutUser;
+};
+
+function renderMunicipalOpsMapMarkers(){
+  if(!state.map || typeof L === 'undefined') return;
+  if(!state.municipalOpsLayer) {
+    state.municipalOpsLayer = L.layerGroup().addTo(state.map);
+  }
+  state.municipalOpsLayer.clearLayers();
+  
+  const oldBanner = $('map-municipal-status-banner');
+  if(oldBanner) oldBanner.remove();
+  
+  const session = typeof getUserSession === 'function' ? getUserSession() : { role: 'public' };
+  if(session.role === 'public') return;
+  
+  const mapStage = document.querySelector('.map-stage');
+  if(mapStage){
+    const banner = document.createElement('div');
+    banner.id = 'map-municipal-status-banner';
+    banner.style.cssText = 'position:absolute; top:58px; right:16px; z-index:550; background:#003776; color:#fff; border:1px solid #fff; border-radius:10px; padding:6px 12px; font-size:11px; font-weight:700; display:flex; align-items:center; gap:10px; box-shadow:0 4px 14px rgba(0,0,0,0.25);';
+    banner.innerHTML = `<span>🏛️ Municipal Authority: ${esc(session.name)}</span><button id="map-banner-logout-btn" style="background:#dc2626; color:#fff; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:10px; font-weight:700;">Sign Out ⏻</button>`;
+    mapStage.appendChild(banner);
+    const mapLogBtn = $('map-banner-logout-btn');
+    if(mapLogBtn) mapLogBtn.onclick = logoutUser;
+  }
+}
+
+function dashboard(municipal=false){
+  if(typeof renderCivicDashboard === 'function'){
+    renderCivicDashboard(municipal);
+  }
+}
+
+function login(){
+  if(typeof renderMunicipalLogin === 'function'){
+    renderMunicipalLogin();
+  }
+}
+
+function navigate(){
+  stopCameraStream();
+  civicGeneration++;
+  clearPrivatePhotos();
+  if(window.updateTopNavigation) window.updateTopNavigation();
+  
+  const page = (location.hash || '#/map').replace('#/', '');
+  const known = ['map', 'dashboard', 'report', 'about', 'login', 'municipality'];
+  if(!known.includes(page)){ location.hash = '#/map'; return; }
+  
+  if(typeof document.querySelectorAll === 'function'){
+    document.querySelectorAll('nav a').forEach(a => {
+      if(a && a.classList && typeof a.classList.toggle === 'function') a.classList.toggle('active', a.hash === '#/' + page);
+    });
+  }
+
+  if($('map-page')) $('map-page').hidden = (page !== 'map');
+  if($('content-page')) $('content-page').hidden = (page === 'map');
+  
+  if(page === 'map'){
+    renderMunicipalOpsMapMarkers();
+    setTimeout(() => state.map?.invalidateSize(), 0);
+  } else {
+    try{
+      ({
+        dashboard: () => dashboard(),
+        report,
+        about,
+        login,
+        municipality: () => dashboard(true)
+      })[page]();
+    }catch(err){
+      console.error('Page render error:', err);
+    }
+  }
+  document.title = `R.A.K.S.H.A.K. · ${page === 'map' ? 'Live Map' : page[0].toUpperCase() + page.slice(1)}`;
+}
+
 renderTimeline();renderSources();initMap();navigate();
-document.querySelector('.skip').onclick=e=>{e.preventDefault();$('main').focus();};
-document.querySelector('.hero-action').onclick=e=>{e.preventDefault();$('route-form').scrollIntoView({behavior:'smooth',block:'center'});$('origin').focus({preventScroll:true});};
-window.addEventListener('hashchange',navigate);
-$('route-form').onsubmit=findRoute;$('mumbai-default').onclick=showMumbaiDefault;$('go-to-start').onclick=goToRouteStart;
-$('mode-demo').onclick=()=>setMapMode(true);$('mode-live').onclick=()=>setMapMode(false);
+
+if (typeof document.querySelector === 'function') {
+  const skipBtn = document.querySelector('.skip');
+  if (skipBtn) skipBtn.onclick = e => { e.preventDefault(); $('main').focus(); };
+  const heroBtn = document.querySelector('.hero-action');
+  if (heroBtn) heroBtn.onclick = e => { e.preventDefault(); $('route-form').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('origin').focus({ preventScroll: true }); };
+}
+if (typeof window.addEventListener === 'function') {
+  window.addEventListener('hashchange', navigate);
+}
+if ($('route-form')) $('route-form').onsubmit = findRoute;
+if ($('mumbai-default')) $('mumbai-default').onclick = showMumbaiDefault;
+if ($('mode-demo')) $('mode-demo').onclick = () => setMapMode(true);
+if ($('mode-live')) $('mode-live').onclick = () => setMapMode(false);
 
