@@ -21,3 +21,6 @@ dependencies = [
     "geoalchemy2>=0.14.0",
     "shapely>=2.0.0",
 ]
+
+[tool.vercel]
+entrypoint = "backend.main:app"
