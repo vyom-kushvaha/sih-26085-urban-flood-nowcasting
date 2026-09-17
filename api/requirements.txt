@@ -1,0 +1,14 @@
+# Slim deps for Vercel serverless (SQLite mode, no heavy GIS)
+# rasterio/geoalchemy2/psycopg2 removed - only used in flood-engine, not API routes
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
+requests==2.34.2
+httpx==0.28.1
+numpy==2.5.3
+pillow==12.3.0
+sqlalchemy==2.0.52
+alembic==1.20.0
+shapely==2.1.2

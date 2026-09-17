@@ -2,9 +2,13 @@
   "outputDirectory": "frontend",
   "framework": null,
   "buildCommand": null,
-  "installCommand": null,
   "rewrites": [
+    { "source": "/api/:path*",    "destination": "/api/index" },
+    { "source": "/health",        "destination": "/api/index" },
+    { "source": "/readiness",     "destination": "/api/index" },
+    { "source": "/docs",          "destination": "/api/index" },
+    { "source": "/openapi.json",  "destination": "/api/index" },
     { "source": "/static/:path*", "destination": "/static/:path*" },
-    { "source": "/:path*", "destination": "/index.html" }
+    { "source": "/(.*)",          "destination": "/index.html" }
   ]
 }
