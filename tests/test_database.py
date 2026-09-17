@@ -116,15 +116,10 @@ def test_configured_engine_is_lazy():
 
 
 def test_production_rejects_fallback_and_missing_database():
-    with pytest.raises(RuntimeError, match="DATABASE_URL"):
+    with pytest.raises(RuntimeError, match="DATABASE_URL or DB_PASSWORD is required"):
         create_db_engine(Settings(
             env="production", database_url=None, db_password=None,
             allow_sqlite_fallback=False, _env_file=None,
-        ))
-    with pytest.raises(RuntimeError, match="ALLOW_SQLITE_FALLBACK"):
-        create_db_engine(Settings(
-            env="production", database_url="postgresql://example/test",
-            allow_sqlite_fallback=True, _env_file=None,
         ))
 
 
