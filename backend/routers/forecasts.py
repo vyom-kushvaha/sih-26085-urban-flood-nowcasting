@@ -1,7 +1,11 @@
 import sqlite3
 import math
-from rasterio.crs import CRS
-from rasterio.warp import transform
+try:
+    from rasterio.crs import CRS
+    from rasterio.warp import transform
+except (ImportError, OSError):
+    CRS = None       # type: ignore[assignment,misc]
+    transform = None # type: ignore[assignment]
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from backend.services.forecast_store import get_run, save_run, list_runs

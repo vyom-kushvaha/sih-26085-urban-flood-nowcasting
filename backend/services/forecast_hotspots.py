@@ -5,7 +5,7 @@ from collections import deque
 try:
     from rasterio.crs import CRS
     from rasterio.warp import transform
-except ImportError:
+except (ImportError, OSError):
     CRS = None       # type: ignore[assignment,misc]
     transform = None # type: ignore[assignment]
 
@@ -79,3 +79,4 @@ def forecast_hotspots(result, snapshot, threshold_cm=5, limit=100):
             'limitations': result['limitations'] + [
                 'Four-neighbour cell clusters ranked by peak depth then affected area; not official wards or verified incident reports.',
                 'Display thresholds are not validated passability limits.']}
+

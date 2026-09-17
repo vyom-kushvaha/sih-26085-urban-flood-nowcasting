@@ -2,7 +2,7 @@
 try:
     from pyproj import Geod
     GEOD = Geod(ellps='WGS84')
-except ImportError:
+except (ImportError, OSError):
     Geod = None  # type: ignore[assignment,misc]
     GEOD = None  # type: ignore[assignment]
 
@@ -41,3 +41,4 @@ def route_exposure(result, snapshot, candidates):
             'safe_route_certified': False, 'ranking_basis': 'Peak depth, mean depth, then distance; full model coverage required.',
             'limitations': result['limitations'] + ['Candidate comparison only; no new graph detour is generated.',
                 'No calibrated vehicle thresholds or official closure intersection; ranking is not a safety certificate.']}
+

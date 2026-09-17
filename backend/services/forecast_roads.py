@@ -2,7 +2,7 @@
 import math
 try:
     from rasterio.warp import transform, transform_bounds
-except ImportError:
+except (ImportError, OSError):
     transform = None        # type: ignore[assignment]
     transform_bounds = None # type: ignore[assignment]
 from backend.services.road_exposure import road_ways
@@ -80,3 +80,4 @@ def forecast_roads(result, snapshot, ways=None):
         'limitations':result.get('limitations', []) + ['Centre-line cell intersections; depth bands are not vehicle passability or official closures.'],
         'legend':[{'risk':risk,'color':color} for risk,color in
                   [classify_depth(v) for v in (0,20,40,None)]]}
+
