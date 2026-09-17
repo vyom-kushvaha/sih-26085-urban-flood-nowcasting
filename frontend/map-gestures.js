@@ -1,7 +1,10 @@
 /* Cooperative page/map gestures. Leaflet retains its native pinch and wheel math. */
 'use strict';
 function installMapGestures(map, environment = window) {
+  if (!map || typeof map.getContainer !== 'function') return;
   const container = map.getContainer();
+  if (!container) return;
+
   const hint = document.createElement('div');
   hint.className = 'map-gesture-hint';
   hint.setAttribute('role', 'status');
@@ -75,6 +78,6 @@ function installMapGestures(map, environment = window) {
     hint.remove();
     container.classList.remove('cooperative-map');
   };
-  map.once('unload', cleanup);
+  if (typeof map.once === 'function') map.once('unload', cleanup);
   return cleanup;
 }
