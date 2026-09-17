@@ -74,7 +74,17 @@ frontend_dir = os.path.join(
     "frontend"
 )
 
-if os.path.exists(frontend_dir):
+# CSS/JS/assets live in frontend/static/
+frontend_static_dir = os.path.join(frontend_dir, "static")
+
+if os.path.exists(frontend_static_dir):
+    app.mount(
+        "/static",
+        StaticFiles(directory=frontend_static_dir),
+        name="static"
+    )
+elif os.path.exists(frontend_dir):
+    # Fallback: serve frontend/ directly under /static
     app.mount(
         "/static",
         StaticFiles(directory=frontend_dir),

@@ -1,7 +1,10 @@
 {
+  "outputDirectory": "frontend",
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
   "rewrites": [
-    { "source": "/static/:match*", "destination": "/frontend/:match*" },
-    { "source": "/data-assets/:match*", "destination": "/data/processed/:match*" },
-    { "source": "/", "destination": "/frontend/index.html" }
+    { "source": "/static/:path*", "destination": "/static/:path*" },
+    { "source": "/:path*", "destination": "/index.html" }
   ]
 }
