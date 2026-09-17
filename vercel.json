@@ -1,17 +1,7 @@
 {
-  "cleanUrls": true,
-  "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/frontend/$1"
-    },
-    {
-      "src": "/(.*\\.(?:js|css|geojson|json|png|jpg|jpeg|svg|ico|txt|woff|woff2))",
-      "dest": "/frontend/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/index.html"
-    }
+  "rewrites": [
+    { "source": "/static/:match*", "destination": "/frontend/:match*" },
+    { "source": "/data-assets/:match*", "destination": "/data/processed/:match*" },
+    { "source": "/", "destination": "/frontend/index.html" }
   ]
 }
