@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # not turn an otherwise valid journey into a 503.
     osrm_base_urls: str = "https://router.project-osrm.org,https://routing.openstreetmap.de/routed-car"
     osrm_timeout_seconds: float = 8.0
-    cors_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
+    cors_origins: str = "*"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     @property
     def sqlite_fallback_allowed(self) -> bool:
-        return self.allow_sqlite_fallback and not self.is_production
+        return self.allow_sqlite_fallback
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -69,10 +69,8 @@ class Settings(BaseSettings):
         )
 
     def validate_runtime(self) -> None:
-        if self.is_production and not self.sqlalchemy_database_uri:
-            raise RuntimeError("DATABASE_URL or DB_PASSWORD is required in production")
-        if self.is_production and self.allow_sqlite_fallback:
-            raise RuntimeError("ALLOW_SQLITE_FALLBACK must be false in production")
+        if self.is_production and not self.sqlalchemy_database_uri and not self.allow_sqlite_fallback:
+            raise RuntimeError("DATABASE_URL or DB_PASSWORD is required when SQLite fallback is disabled")
 
 
 @lru_cache

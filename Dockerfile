@@ -10,11 +10,13 @@ COPY requirements.txt requirements-deploy.txt ./
 RUN pip install --no-cache-dir -r requirements-deploy.txt
 
 COPY . .
-RUN useradd --create-home appuser && chown -R appuser:appuser /app
+# Hugging Face Spaces & standard rootless container support (UID 1000)
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+EXPOSE 7860
 EXPOSE 8000
-ENV PORT=8000
+ENV PORT=7860
 ENV HOST=0.0.0.0
 
 CMD ["python", "scripts/start_production.py"]
