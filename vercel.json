@@ -1,14 +1,17 @@
 {
-  "outputDirectory": "frontend",
   "cleanUrls": true,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/static/(.*)",
-      "destination": "/frontend/$1"
+      "src": "/static/(.*)",
+      "dest": "/frontend/$1"
     },
     {
-      "source": "/(.*)",
-      "destination": "/frontend/$1"
+      "src": "/(.*\\.(?:js|css|geojson|json|png|jpg|jpeg|svg|ico|txt|woff|woff2))",
+      "dest": "/frontend/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/index.html"
     }
   ]
 }
