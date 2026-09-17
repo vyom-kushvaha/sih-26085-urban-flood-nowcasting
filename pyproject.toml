@@ -1,2 +1,26 @@
+[project]
+name = "urban-flood-nowcasting"
+version = "1.0.0"
+description = "Urban Flood Nowcasting System"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "httpx>=0.27.0",
+    "numpy>=1.26.0",
+    "pillow>=10.0.0",
+    "psycopg2-binary>=2.9.9",
+    "rasterio>=1.4.0",
+    "pyproj>=3.7.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "geoalchemy2>=0.14.0",
+    "shapely>=2.0.0",
+]
+
 [tool.vercel]
 entrypoint = "backend.main:app"
