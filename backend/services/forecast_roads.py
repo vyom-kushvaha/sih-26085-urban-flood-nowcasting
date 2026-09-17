@@ -1,6 +1,10 @@
 """Intersect road centre lines with saved model cells; never infer depth from rain."""
 import math
-from rasterio.warp import transform, transform_bounds
+try:
+    from rasterio.warp import transform, transform_bounds
+except ImportError:
+    transform = None        # type: ignore[assignment]
+    transform_bounds = None # type: ignore[assignment]
 from backend.services.road_exposure import road_ways
 
 

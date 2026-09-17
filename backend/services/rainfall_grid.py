@@ -1,7 +1,11 @@
 """Area-overlap rainfall remapping for north-up grids in one projected CRS."""
 import numpy as np
-from pyproj import CRS
-from pyproj.exceptions import CRSError
+try:
+    from pyproj import CRS
+    from pyproj.exceptions import CRSError
+except ImportError:
+    CRS = None  # type: ignore[assignment,misc]
+    CRSError = ValueError  # type: ignore[assignment,misc]
 from pydantic import BaseModel, ConfigDict, Field
 
 
