@@ -2,7 +2,7 @@
 name = "urban-flood-nowcasting"
 version = "1.0.0"
 description = "Urban Flood Nowcasting System"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
