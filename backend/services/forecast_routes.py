@@ -1,9 +1,12 @@
 """Measure candidate road geometry against one exact saved depth snapshot."""
-from pyproj import Geod
+try:
+    from pyproj import Geod
+    GEOD = Geod(ellps='WGS84')
+except ImportError:
+    Geod = None  # type: ignore[assignment,misc]
+    GEOD = None  # type: ignore[assignment]
+
 from backend.services.forecast_roads import forecast_roads
-
-GEOD = Geod(ellps='WGS84')
-
 
 def route_exposure(result, snapshot, candidates):
     assessed = []

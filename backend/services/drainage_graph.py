@@ -5,7 +5,10 @@ This validates an input network, not its hydraulic performance or survey accurac
 """
 from collections import deque
 from typing import Annotated, Literal
-from pyproj import Geod
+try:
+    from pyproj import Geod
+except ImportError:
+    Geod = None  # type: ignore[assignment,misc]
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 

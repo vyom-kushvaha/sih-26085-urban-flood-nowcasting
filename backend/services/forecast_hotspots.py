@@ -2,8 +2,12 @@
 import math
 from collections import deque
 
-from rasterio.crs import CRS
-from rasterio.warp import transform
+try:
+    from rasterio.crs import CRS
+    from rasterio.warp import transform
+except ImportError:
+    CRS = None       # type: ignore[assignment,misc]
+    transform = None # type: ignore[assignment]
 
 from backend.services.forecast_roads import classify_depth
 
